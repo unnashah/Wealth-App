@@ -276,9 +276,9 @@ function WealthApp() {
   };
 
   const nw = totalNW();
-  const breakdown = [{l:'Gold & Silver',v:metalVal()},{l:'Crypto',v:cryptoVal},{l:'SGB',v:sgbVal()},{l:'NPS',v:f(nps.balance)},{l:'PPF',v:f(ppf.balance)},{l:'EPF',v:f(epf.balance)},{l:'Mutual Funds',v:mfVal},{l:'Stocks',v:stVal},{l:'FDs',v:fdVal}].filter(x=>x.v>0);
-  const TABS=[{k:'home',i:'\uD83D\uDC8E',l:'Wealth'},{k:'metals',i:'\uD83E\uDD47',l:'Metals'},{k:'markets',i:'\uD83D\uDCC8',l:'Markets'},{k:'fds',i:'\uD83C\uDFE6',l:'FDs'},{k:'tax',i:'\u2702\uFE0F',l:'Tax'}];
-  const titles={home:'\uD83D\uDC8E Net Worth',metals:'\uD83E\uDD47 Metals & Crypto',markets:'\uD83D\uDCC8 Markets',fds:'\uD83C\uDFE6 Fixed Deposits',tax:'\u2702\uFE0F Tax Planner'};
+  const breakdown = [{l:'Metals & Jewellery',v:metalVal()},{l:'SGB',v:sgbVal()},{l:'Govt Schemes',v:f(nps.balance)+f(ppf.balance)+f(epf.balance)},{l:'Mutual Funds',v:mfVal},{l:'Stocks',v:stVal},{l:'Crypto',v:cryptoVal},{l:'Fixed Deposits',v:fdVal}].filter(x=>x.v>0);
+  const TABS=[{k:'home',i:'\uD83D\uDC8E',l:'Wealth'},{k:'metals',i:'\uD83E\uDD47',l:'Metals'},{k:'govt',i:'\uD83C\uDFDB\uFE0F',l:'Govt'},{k:'markets',i:'\uD83D\uDCC8',l:'Markets'},{k:'tax',i:'\u2702\uFE0F',l:'Tax'}];
+  const titles={home:'\uD83D\uDC8E Net Worth',metals:'\uD83E\uDD47 Metals & Jewellery',govt:'\uD83C\uDFDB\uFE0F Govt Schemes',markets:'\uD83D\uDCC8 Markets',tax:'\u2702\uFE0F Tax Planner'};
 
   return (
     <div style={S.wrap}>
@@ -357,49 +357,7 @@ function WealthApp() {
           {metals.diamondValue&&<div style={{fontSize:'11px',color:'#6A500A'}}>Tip: Get a recent appraisal for accuracy. Diamond resale is typically 30-50% of purchase price.</div>}
         </div>
 
-        <div style={S.card}><div style={S.ct}>{'\u20BF'} Crypto</div>
-          <div style={{fontSize:'10px',color:'#3A3A3A',marginBottom:'8px'}}>Live prices via CoinGecko (INR)</div>
-          {crypto.map(c=>{var curV=f(c.qty)*(c.priceINR||0),costV=f(c.qty)*f(c.buyPrice);return<div key={c.id} style={S.holdCard}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
-              <div style={{flex:1}}>
-                <div style={{display:'flex',alignItems:'center',gap:'6px',marginBottom:'3px'}}>
-                  <span style={{fontSize:'14px',fontWeight:800,color:'#F2C94C'}}>{c.symbol}</span>
-                  {c.change24h!=null&&<span style={{fontSize:'10px',padding:'2px 6px',borderRadius:'4px',background:c.change24h>=0?'#052205':'#1A0505',color:c.change24h>=0?'#22C55E':'#EF4444',fontWeight:700}}>{c.change24h>=0?'+':''}{(c.change24h||0).toFixed(1)}%</span>}
-                </div>
-                <div style={{fontSize:'10px',color:'#3A3A3A'}}>{c.qty} {c.symbol} {c.priceINR?'\u00B7 \u20B9'+f(c.priceINR).toLocaleString('en-IN')+'/coin':''}</div>
-              </div>
-              <div style={{textAlign:'right'}}>
-                <div style={{fontSize:'14px',fontWeight:800,color:'#F2C94C'}}>{c.priceINR?fmt(curV):'\u2014'}</div>
-                {costV>0&&c.priceINR&&<div style={{fontSize:'11px',color:gc(curV,costV)}}>{curV>=costV?'+':''}{pct(curV,costV)}%</div>}
-              </div>
-            </div>
-            <div style={{textAlign:'right',marginTop:'6px'}}><span style={{fontSize:'10px',color:'#2A2A2A',cursor:'pointer'}} onClick={()=>uCrypto(crypto.filter(x=>x.id!==c.id))}>remove</span></div>
-          </div>;})}
-          {cryptoVal>0&&<div style={{padding:'10px',background:'#141414',borderRadius:'10px',marginBottom:'8px',display:'flex',justifyContent:'space-around'}}>
-            <div style={{textAlign:'center'}}><div style={{fontSize:'9px',color:'#3A3A3A'}}>INVESTED</div><div style={{fontSize:'13px',fontWeight:700,color:'#888'}}>{fmt(cryptoCost)}</div></div>
-            <div style={{textAlign:'center'}}><div style={{fontSize:'9px',color:'#3A3A3A'}}>CURRENT</div><div style={{fontSize:'13px',fontWeight:700,color:'#F2C94C'}}>{fmt(cryptoVal)}</div></div>
-            <div style={{textAlign:'center'}}><div style={{fontSize:'9px',color:'#3A3A3A'}}>P&L</div><div style={{fontSize:'13px',fontWeight:700,color:gc(cryptoVal,cryptoCost)}}>{cryptoVal>=cryptoCost?'+':''}{fmt(cryptoVal-cryptoCost)}</div></div>
-          </div>}
-          {!addingCrypto?<button style={S.addBtn} onClick={async()=>{setAddingCrypto(true);}}>+ Add Crypto</button>
-          :<div style={{background:'#141414',borderRadius:'10px',padding:'12px',marginTop:'4px'}}>
-            <div style={S.lbl}>Select Coin</div>
-            <div style={{display:'flex',gap:'4px',flexWrap:'wrap',marginBottom:'10px'}}>
-              {[['bitcoin','BTC'],['ethereum','ETH'],['solana','SOL'],['ripple','XRP'],['cardano','ADA'],['dogecoin','DOGE'],['polkadot','DOT'],['avalanche-2','AVAX'],['chainlink','LINK'],['polygon','MATIC'],['litecoin','LTC'],['shiba-inu','SHIB']].map(([id,sym])=>
-                <button key={id} style={S.chip(newCrypto.coin===id)} onClick={()=>setNewCrypto(p=>({...p,coin:id,symbol:sym}))}>{sym}</button>
-              )}
-            </div>
-            <div style={S.row2}>
-              <div style={{flex:1}}><Inp label="Quantity" value={newCrypto.qty} onChange={e=>setNewCrypto(p=>({...p,qty:e.target.value}))} placeholder="0.05"/></div>
-              <div style={{flex:1}}><Inp label={"Buy Price/coin (\u20B9)"} value={newCrypto.buyPrice} onChange={e=>setNewCrypto(p=>({...p,buyPrice:e.target.value}))} placeholder="5000000"/></div>
-            </div>
-            <div style={S.row2}>
-              <button style={{...S.addBtn,flex:1,marginTop:0}} onClick={async()=>{if(!newCrypto.qty)return;var c={id:Date.now(),coin:newCrypto.coin,symbol:newCrypto.symbol,qty:f(newCrypto.qty),buyPrice:f(newCrypto.buyPrice),priceINR:null,change24h:null};var updated=await fetchCryptoPrices([c]);var all=[...crypto,updated[0]];uCrypto(all);setNewCrypto({coin:'bitcoin',symbol:'BTC',qty:'',buyPrice:''});setAddingCrypto(false);}}>Add</button>
-              <button style={{...S.addBtn,flex:1,marginTop:0,background:'#1A1A1A',color:'#888'}} onClick={()=>setAddingCrypto(false)}>Cancel</button>
-            </div>
-          </div>}
-        </div>
-
-        {(metalVal()+cryptoVal)>0&&<div style={{...S.cardG,textAlign:'center'}}><div style={{fontSize:'9px',color:'#6A500A',letterSpacing:'1px',marginBottom:'2px'}}>TOTAL METALS, JEWELLERY & CRYPTO</div><div style={{fontSize:'22px',fontWeight:800,color:'#F2C94C'}}>{fmt(metalVal()+cryptoVal)}</div></div>}
+        {metalVal()>0&&<div style={{...S.cardG,textAlign:'center'}}><div style={{fontSize:'9px',color:'#6A500A',letterSpacing:'1px',marginBottom:'2px'}}>TOTAL METALS & JEWELLERY</div><div style={{fontSize:'22px',fontWeight:800,color:'#F2C94C'}}>{fmt(metalVal())}</div></div>}
 
         <div style={S.card}><div style={S.ct}>SGB</div>
           <div style={{...S.row2,marginBottom:'8px'}}><button style={S.chip(sgb.purchaseType==='primary')} onClick={()=>uSgb({...sgb,purchaseType:'primary'})}>Primary</button><button style={S.chip(sgb.purchaseType==='secondary')} onClick={()=>uSgb({...sgb,purchaseType:'secondary'})}>Secondary</button></div>
@@ -408,21 +366,38 @@ function WealthApp() {
           <div style={S.lbl}>Purchase Date</div><input style={{...S.inp,marginBottom:'8px'}} type="date" value={sgb.purchaseDate} onChange={e=>uSgb({...sgb,purchaseDate:e.target.value})}/>
           {sgb.grams&&prices.gold24k&&<div style={{padding:'10px',background:'#141414',borderRadius:'10px'}}><Dr label="Current value" val={fmt(sgbVal())}/>{sgb.purchasePrice&&<Dr label="Gain/Loss" val={fmt(sgbVal()-f(sgb.purchasePrice)*f(sgb.grams))} color={sgbVal()>=f(sgb.purchasePrice)*f(sgb.grams)?'#22C55E':'#EF4444'}/>}</div>}
         </div>
+      </div>}
 
-        <div style={S.card}><div style={S.ct}>NPS / PPF / EPF</div>
-          <Inp label="NPS Balance" value={nps.balance} onChange={e=>uNps({...nps,balance:e.target.value})}/>
-          <Inp label="PPF Balance" value={ppf.balance} onChange={e=>uPpf({...ppf,balance:e.target.value})}/>
-          <Inp label="PPF Opened Year" value={ppf.openYear} onChange={e=>uPpf({...ppf,openYear:e.target.value})} placeholder="2018"/>
-          <Inp label="EPF Balance" value={epf.balance} onChange={e=>uEpf({...epf,balance:e.target.value})}/>
-          <Inp label="EPF Service Years" value={epf.serviceYears} onChange={e=>uEpf({...epf,serviceYears:e.target.value})}/>
+      {/* ══════ GOVT SCHEMES ══════ */}
+      {tab==='govt' && <div style={S.pg}>
+        <div style={S.card}><div style={S.ct}>{'\uD83C\uDFDB\uFE0F'} National Pension System (NPS)</div>
+          <Inp label="NPS Balance (\u20B9)" value={nps.balance} onChange={e=>uNps({...nps,balance:e.target.value})}/>
+          <Inp label="Your Age" value={nps.age} onChange={e=>uNps({...nps,age:e.target.value})} placeholder="35"/>
+          {nps.balance&&<div style={{padding:'8px',background:'#141414',borderRadius:'8px',fontSize:'11px',color:'#6A500A'}}>NPS gives extra \u20B950K deduction under 80CCD(1B) in old regime, over the \u20B91.5L 80C limit.</div>}
         </div>
+        <div style={S.card}><div style={S.ct}>{'\uD83D\uDCB0'} Public Provident Fund (PPF)</div>
+          <Inp label="PPF Balance (\u20B9)" value={ppf.balance} onChange={e=>uPpf({...ppf,balance:e.target.value})}/>
+          <Inp label="Account Opened (Year)" value={ppf.openYear} onChange={e=>uPpf({...ppf,openYear:e.target.value})} placeholder="2018"/>
+          {ppf.balance&&ppf.openYear&&(()=>{var yrs=new Date().getFullYear()-f(ppf.openYear);return <div style={{padding:'8px',background:'#141414',borderRadius:'8px',marginTop:'4px'}}><Dr label="Account age" val={yrs+' years'} color="#888"/>{yrs>=15?<div style={{fontSize:'11px',color:'#22C55E',marginTop:'4px'}}>Matured! Extend in 5-year blocks for continued tax-free growth.</div>:yrs>=6?<div style={{fontSize:'11px',color:'#22C55E',marginTop:'4px'}}>Partial withdrawal available (up to 50%). {15-yrs} years to maturity.</div>:<div style={{fontSize:'11px',color:'#F2C94C',marginTop:'4px'}}>{6-yrs} years until partial withdrawal. EEE benefit \u2014 tax-free at every stage.</div>}</div>;})()}
+        </div>
+        <div style={S.card}><div style={S.ct}>{'\uD83D\uDC54'} Employee Provident Fund (EPF)</div>
+          <Inp label="EPF Balance (\u20B9)" value={epf.balance} onChange={e=>uEpf({...epf,balance:e.target.value})}/>
+          <Inp label="Service Years" value={epf.serviceYears} onChange={e=>uEpf({...epf,serviceYears:e.target.value})}/>
+          {epf.balance&&epf.serviceYears&&(()=>{var yrs=f(epf.serviceYears);return <div style={{padding:'8px',background:'#141414',borderRadius:'8px',marginTop:'4px'}}>{yrs>=5?<div style={{fontSize:'11px',color:'#22C55E'}}>5+ years \u2014 withdrawal is 100% tax-free.</div>:<div style={{fontSize:'11px',color:'#EF4444'}}>Under 5 years \u2014 10% TDS on withdrawal ({fmt(f(epf.balance)*0.1)}). Hold {(5-yrs).toFixed(0)} more years.</div>}</div>;})()}
+        </div>
+        {(f(nps.balance)+f(ppf.balance)+f(epf.balance))>0&&<div style={{...S.cardG,textAlign:'center'}}><div style={{fontSize:'9px',color:'#6A500A',letterSpacing:'1px',marginBottom:'2px'}}>TOTAL GOVT SCHEMES</div><div style={{fontSize:'22px',fontWeight:800,color:'#F2C94C'}}>{fmt(f(nps.balance)+f(ppf.balance)+f(epf.balance))}</div></div>}
       </div>}
 
       {/* ══════ MARKETS ══════ */}
       {tab==='markets' && <div style={S.pg}>
-        <div style={{display:'flex',gap:'6px',marginBottom:'8px'}}>{['portfolio','funds','stocks'].map(t=><button key={t} style={S.tabBtn(subTab===t)} onClick={()=>setSubTab(t)}>{t==='portfolio'?'Overview':t==='funds'?'Funds':'Stocks'}</button>)}</div>
+        <div style={{display:'flex',gap:'4px',marginBottom:'8px',overflowX:'auto',paddingBottom:'2px'}}>{['portfolio','funds','stocks','crypto','fds'].map(t=><button key={t} style={S.tabBtn(subTab===t)} onClick={()=>setSubTab(t)}>{t==='portfolio'?'Overview':t==='funds'?'Funds':t==='stocks'?'Stocks':t==='crypto'?'Crypto':'FDs'}</button>)}</div>
         {subTab==='portfolio'&&<div>
-          <div style={{...S.cardG,textAlign:'center',padding:'18px 14px'}}><div style={{fontSize:'9px',color:'#6A500A',letterSpacing:'2px',textTransform:'uppercase',marginBottom:'4px'}}>Market Portfolio</div><div style={{fontSize:'30px',fontWeight:800,color:'#F2C94C'}}>{fmt(mfVal+stVal)||'\u20B90'}</div>{(mfCost+stCost)>0&&<div style={{display:'flex',justifyContent:'center',gap:'16px',marginTop:'8px'}}><div><div style={{fontSize:'9px',color:'#3A3A3A'}}>INVESTED</div><div style={{fontSize:'13px',fontWeight:700,color:'#888'}}>{fmt(mfCost+stCost)}</div></div><div><div style={{fontSize:'9px',color:'#3A3A3A'}}>RETURN</div><div style={{fontSize:'13px',fontWeight:700,color:gc(mfVal+stVal,mfCost+stCost)}}>{pct(mfVal+stVal,mfCost+stCost)}%</div></div></div>}</div>
+          <div style={{...S.cardG,textAlign:'center',padding:'18px 14px'}}><div style={{fontSize:'9px',color:'#6A500A',letterSpacing:'2px',textTransform:'uppercase',marginBottom:'4px'}}>Market Portfolio</div><div style={{fontSize:'30px',fontWeight:800,color:'#F2C94C'}}>{fmt(mfVal+stVal+cryptoVal+fdVal)||'\u20B90'}</div>{(mfCost+stCost+cryptoCost)>0&&<div style={{display:'flex',justifyContent:'center',gap:'12px',marginTop:'8px',flexWrap:'wrap'}}>
+            {mfVal>0&&<div style={{textAlign:'center'}}><div style={{fontSize:'9px',color:'#3A3A3A'}}>MF</div><div style={{fontSize:'12px',fontWeight:700,color:'#F2C94C'}}>{fmt(mfVal)}</div></div>}
+            {stVal>0&&<div style={{textAlign:'center'}}><div style={{fontSize:'9px',color:'#3A3A3A'}}>Stocks</div><div style={{fontSize:'12px',fontWeight:700,color:'#F2C94C'}}>{fmt(stVal)}</div></div>}
+            {cryptoVal>0&&<div style={{textAlign:'center'}}><div style={{fontSize:'9px',color:'#3A3A3A'}}>Crypto</div><div style={{fontSize:'12px',fontWeight:700,color:'#F2C94C'}}>{fmt(cryptoVal)}</div></div>}
+            {fdVal>0&&<div style={{textAlign:'center'}}><div style={{fontSize:'9px',color:'#3A3A3A'}}>FDs</div><div style={{fontSize:'12px',fontWeight:700,color:'#F2C94C'}}>{fmt(fdVal)}</div></div>}
+          </div>}</div>
         </div>}
         {subTab==='funds'&&<div>
           <div style={{display:'flex',justifyContent:'space-between',marginBottom:'10px'}}><div style={{fontSize:'10px',color:'#3A3A3A'}}>Live NAV</div><button style={S.refreshBtn} onClick={async()=>{var u=await Promise.all(mfHoldings.map(async h=>{var n=await fetchNAV(h.schemeCode);return n?{...h,currentNav:n.nav,navDate:n.date}:h;}));uMf(u);}}>{'\u21BB'} NAV</button></div>
@@ -477,11 +452,49 @@ function WealthApp() {
           {stocks.map(h=>{var cur=h.qty*(h.currentPrice||0),cost=h.qty*(h.avgPrice||0);return<div key={h.id} style={S.holdCard}><div style={{display:'flex',justifyContent:'space-between'}}><div style={{flex:1}}><div style={{fontSize:'14px',fontWeight:800,color:'#F2C94C'}}>{h.symbol} {h.change!=null&&<span style={{fontSize:'10px',color:h.change>=0?'#22C55E':'#EF4444'}}>{h.change>=0?'+':''}{(h.change||0).toFixed(2)}%</span>}</div><div style={{fontSize:'10px',color:'#3A3A3A'}}>{h.qty} shares avg \u20B9{h.avgPrice}</div></div><div style={{textAlign:'right'}}><div style={{fontSize:'14px',fontWeight:800,color:'#F2C94C'}}>{h.currentPrice?fmt(cur):'\u2014'}</div>{cost>0&&h.currentPrice&&<div style={{fontSize:'11px',color:gc(cur,cost)}}>{pct(cur,cost)}%</div>}</div></div><div style={{textAlign:'right',marginTop:'6px'}}><span style={{fontSize:'10px',color:'#2A2A2A',cursor:'pointer'}} onClick={()=>uStocks(stocks.filter(x=>x.id!==h.id))}>remove</span></div></div>;})}
           {!addingStock?<div><button style={S.addBtn} onClick={()=>setAddingStock(true)}>+ Add Stock</button><input ref={stockFileRef} type="file" accept=".csv,.xlsx,.xls" style={{display:'none'}} onChange={e=>{if(e.target.files[0])importStocks(e.target.files[0]);e.target.value='';}} /><button style={{...S.addBtn,background:'#141414',color:'#F2C94C',border:'1px solid #6A500A'}} onClick={()=>stockFileRef.current?.click()}>{'\uD83D\uDCE4'} Import from Zerodha/CSV</button></div>:<div style={S.card}><div style={S.ct}>Add Stock</div><div style={S.row2}><div style={{flex:1}}><div style={S.lbl}>Symbol</div><input style={S.inp} placeholder="RELIANCE" value={newStock.symbol} onChange={e=>setNewStock(p=>({...p,symbol:e.target.value.toUpperCase()}))}/></div><div style={{flex:1}}><div style={S.lbl}>Name</div><input style={S.inp} value={newStock.name} onChange={e=>setNewStock(p=>({...p,name:e.target.value}))}/></div></div><div style={S.row2}><div style={{flex:1}}><div style={S.lbl}>Qty</div><input style={S.inp} type="number" value={newStock.qty} onChange={e=>setNewStock(p=>({...p,qty:e.target.value}))}/></div><div style={{flex:1}}><div style={S.lbl}>Avg Price</div><input style={S.inp} type="number" value={newStock.avgPrice} onChange={e=>setNewStock(p=>({...p,avgPrice:e.target.value}))}/></div></div><div style={S.row2}><button style={{...S.addBtn,flex:1,marginTop:0}} onClick={addStockFn}>{loadingStocks?'...':'Add'}</button><button style={{...S.addBtn,flex:1,marginTop:0,background:'#1A1A1A',color:'#888'}} onClick={()=>{setAddingStock(false);setNewStock({symbol:'',name:'',qty:'',avgPrice:''});}}>Cancel</button></div></div>}
         </div>}
-      </div>}
-
-      {/* ══════ FD ══════ */}
-      {tab==='fds' && <div style={S.pg}>
-        {selectedFd?(()=>{var fd=selectedFd,td=daysBetween(fd.startDate,fd.maturityDate),held=daysHeld(fd.startDate),left=daysLeft(fd.maturityDate),ma=calcFD(fd.principal,fd.rate,td,fd.compounding),curVal=calcFD(fd.principal,fd.rate,Math.max(0,held),fd.compounding),int=ma-fd.principal,curInt=curVal-fd.principal,prog=Math.min(100,Math.max(0,(held/td)*100)),isMat=left<=0,wd=wdDate||todayStr(),dAW=daysBetween(fd.startDate,wd),eR=Math.max(0,f(fd.rate)-f(penalty)),pI=f(fd.principal)*Math.pow(1+eR/100/f(fd.compounding),f(fd.compounding)*Math.max(0,dAW)/365)-f(fd.principal),pT=f(fd.principal)+pI,lI=int-pI; return <div>
+        {subTab==='crypto'&&<div>
+          <div style={{fontSize:'10px',color:'#3A3A3A',marginBottom:'10px'}}>Live prices via CoinGecko (INR)</div>
+          {crypto.map(c=>{var curV=f(c.qty)*(c.priceINR||0),costV=f(c.qty)*f(c.buyPrice);return<div key={c.id} style={S.holdCard}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+              <div style={{flex:1}}>
+                <div style={{display:'flex',alignItems:'center',gap:'6px',marginBottom:'3px'}}>
+                  <span style={{fontSize:'14px',fontWeight:800,color:'#F2C94C'}}>{c.symbol}</span>
+                  {c.change24h!=null&&<span style={{fontSize:'10px',padding:'2px 6px',borderRadius:'4px',background:c.change24h>=0?'#052205':'#1A0505',color:c.change24h>=0?'#22C55E':'#EF4444',fontWeight:700}}>{c.change24h>=0?'+':''}{(c.change24h||0).toFixed(1)}%</span>}
+                </div>
+                <div style={{fontSize:'10px',color:'#3A3A3A'}}>{c.qty} {c.symbol} {c.priceINR?'\u00B7 \u20B9'+f(c.priceINR).toLocaleString('en-IN')+'/coin':''}</div>
+              </div>
+              <div style={{textAlign:'right'}}>
+                <div style={{fontSize:'14px',fontWeight:800,color:'#F2C94C'}}>{c.priceINR?fmt(curV):'\u2014'}</div>
+                {costV>0&&c.priceINR&&<div style={{fontSize:'11px',color:gc(curV,costV)}}>{curV>=costV?'+':''}{pct(curV,costV)}%</div>}
+              </div>
+            </div>
+            <div style={{textAlign:'right',marginTop:'6px'}}><span style={{fontSize:'10px',color:'#2A2A2A',cursor:'pointer'}} onClick={()=>uCrypto(crypto.filter(x=>x.id!==c.id))}>remove</span></div>
+          </div>;})}
+          {cryptoVal>0&&<div style={{padding:'10px',background:'#141414',borderRadius:'10px',marginBottom:'8px',display:'flex',justifyContent:'space-around'}}>
+            <div style={{textAlign:'center'}}><div style={{fontSize:'9px',color:'#3A3A3A'}}>INVESTED</div><div style={{fontSize:'13px',fontWeight:700,color:'#888'}}>{fmt(cryptoCost)}</div></div>
+            <div style={{textAlign:'center'}}><div style={{fontSize:'9px',color:'#3A3A3A'}}>CURRENT</div><div style={{fontSize:'13px',fontWeight:700,color:'#F2C94C'}}>{fmt(cryptoVal)}</div></div>
+            <div style={{textAlign:'center'}}><div style={{fontSize:'9px',color:'#3A3A3A'}}>P&L</div><div style={{fontSize:'13px',fontWeight:700,color:gc(cryptoVal,cryptoCost)}}>{cryptoVal>=cryptoCost?'+':''}{fmt(cryptoVal-cryptoCost)}</div></div>
+          </div>}
+          {!addingCrypto?<button style={S.addBtn} onClick={()=>setAddingCrypto(true)}>+ Add Crypto</button>
+          :<div style={{background:'#141414',borderRadius:'10px',padding:'12px',marginTop:'4px'}}>
+            <div style={S.lbl}>Select Coin</div>
+            <div style={{display:'flex',gap:'4px',flexWrap:'wrap',marginBottom:'10px'}}>
+              {[['bitcoin','BTC'],['ethereum','ETH'],['solana','SOL'],['ripple','XRP'],['cardano','ADA'],['dogecoin','DOGE'],['polkadot','DOT'],['avalanche-2','AVAX'],['chainlink','LINK'],['polygon','MATIC'],['litecoin','LTC'],['shiba-inu','SHIB']].map(([id,sym])=>
+                <button key={id} style={S.chip(newCrypto.coin===id)} onClick={()=>setNewCrypto(p=>({...p,coin:id,symbol:sym}))}>{sym}</button>
+              )}
+            </div>
+            <div style={S.row2}>
+              <div style={{flex:1}}><Inp label="Quantity" value={newCrypto.qty} onChange={e=>setNewCrypto(p=>({...p,qty:e.target.value}))} placeholder="0.05"/></div>
+              <div style={{flex:1}}><Inp label={"Buy Price/coin (\u20B9)"} value={newCrypto.buyPrice} onChange={e=>setNewCrypto(p=>({...p,buyPrice:e.target.value}))} placeholder="5000000"/></div>
+            </div>
+            <div style={S.row2}>
+              <button style={{...S.addBtn,flex:1,marginTop:0}} onClick={async()=>{if(!newCrypto.qty)return;var c={id:Date.now(),coin:newCrypto.coin,symbol:newCrypto.symbol,qty:f(newCrypto.qty),buyPrice:f(newCrypto.buyPrice),priceINR:null,change24h:null};var updated=await fetchCryptoPrices([c]);uCrypto([...crypto,updated[0]]);setNewCrypto({coin:'bitcoin',symbol:'BTC',qty:'',buyPrice:''});setAddingCrypto(false);}}>Add</button>
+              <button style={{...S.addBtn,flex:1,marginTop:0,background:'#1A1A1A',color:'#888'}} onClick={()=>setAddingCrypto(false)}>Cancel</button>
+            </div>
+          </div>}
+        </div>}
+        {subTab==='fds'&&<div>
+          {selectedFd?(()=>{var fd=selectedFd,td=daysBetween(fd.startDate,fd.maturityDate),held=daysHeld(fd.startDate),left=daysLeft(fd.maturityDate),ma=calcFD(fd.principal,fd.rate,td,fd.compounding),curVal=calcFD(fd.principal,fd.rate,Math.max(0,held),fd.compounding),int=ma-fd.principal,curInt=curVal-fd.principal,prog=Math.min(100,Math.max(0,(held/td)*100)),isMat=left<=0,wd=wdDate||todayStr(),dAW=daysBetween(fd.startDate,wd),eR=Math.max(0,f(fd.rate)-f(penalty)),pI=f(fd.principal)*Math.pow(1+eR/100/f(fd.compounding),f(fd.compounding)*Math.max(0,dAW)/365)-f(fd.principal),pT=f(fd.principal)+pI,lI=int-pI; return <div>
           <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'12px'}}><button onClick={()=>setSelectedFd(null)} style={{background:'none',border:'none',color:'#F2C94C',fontSize:'18px',cursor:'pointer'}}>{'\u2190'}</button><div style={{fontSize:'16px',fontWeight:800,color:'#F2C94C'}}>{fd.bank}</div></div>
           <div style={{...S.cardG,padding:'16px'}}>
             {!isMat&&<div style={{marginBottom:'12px'}}><div style={{fontSize:'9px',color:'#6A500A',letterSpacing:'1.5px',textTransform:'uppercase'}}>CURRENT VALUE (TODAY)</div><div style={{fontSize:'28px',fontWeight:800,color:'#F2C94C'}}>{fmt(curVal)}</div><div style={{fontSize:'11px',color:'#22C55E'}}>+{fmt(curInt)} interest earned so far</div></div>}
@@ -500,6 +513,7 @@ function WealthApp() {
           {fds.length>0&&<div style={S.cardG}><div style={{display:'flex'}}>{[['Invested',fmt(fds.reduce((s,fd)=>s+fd.principal,0))],['Today',fmt(fdVal)],['At Maturity',fmt(fdMatVal)]].map((p,i)=><div key={p[0]} style={{flex:1,textAlign:'center',borderRight:i<2?'1px solid #2A2A1A':'none'}}><div style={{fontSize:'9px',color:'#6A500A',textTransform:'uppercase'}}>{p[0]}</div><div style={{fontSize:'14px',fontWeight:800,color:'#F2C94C'}}>{p[1]}</div></div>)}</div></div>}
           {fds.map(fd=>{var td=daysBetween(fd.startDate,fd.maturityDate),left=daysLeft(fd.maturityDate),held=daysHeld(fd.startDate),mat=calcFD(fd.principal,fd.rate,td,fd.compounding),curVal=calcFD(fd.principal,fd.rate,Math.max(0,held),fd.compounding),prog=Math.min(100,Math.max(0,(held/td)*100)),isMat=left<=0;return<div key={fd.id} style={{background:'#141414',border:'1px solid #1C1C1C',borderRadius:'12px',padding:'13px',marginBottom:'8px',cursor:'pointer'}} onClick={()=>{setSelectedFd(fd);setWdDate('');setPenalty('1');}}><div style={{display:'flex',justifyContent:'space-between',marginBottom:'6px'}}><div><div style={{fontSize:'14px',fontWeight:800,color:'#F2C94C'}}>{fd.bank}</div><div style={{fontSize:'11px',color:'#3A3A3A'}}>{fd.rate}% {fmt(fd.principal)}</div></div><div style={{textAlign:'right'}}><div style={{fontSize:'14px',fontWeight:800,color:'#F2C94C'}}>{fmt(isMat?mat:curVal)}</div><div style={{fontSize:'9px',color:'#6A500A'}}>{isMat?'Matured':'Today'}</div>{!isMat&&<div style={{fontSize:'10px',color:'#22C55E'}}>Mat: {fmt(mat)}</div>}</div></div>{!isMat&&<div style={{height:'3px',background:'#1A1A1A',borderRadius:'2px'}}><div style={{height:'100%',width:prog+'%',background:'#22C55E',borderRadius:'2px',opacity:0.7}}/></div>}<div style={{display:'flex',justifyContent:'space-between',marginTop:'4px'}}><span style={{fontSize:'10px',color:'#3A3A3A'}}>{fmtDate(fd.maturityDate)}</span><span style={{fontSize:'10px',color:isMat?'#888':'#22C55E'}}>{isMat?'Matured':left+'d'}</span></div></div>;})}
           <button style={S.addBtn} onClick={()=>setAddingFd(true)}>+ Add FD</button>
+        </div>}
         </div>}
       </div>}
 
