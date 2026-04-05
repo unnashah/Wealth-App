@@ -11,7 +11,7 @@
 <link rel="icon" href="/icon.svg"/>
 <link rel="apple-touch-icon" href="/icon.svg"/>
 <title>Wealth Dashboard</title>
-<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#080808;font-family:system-ui,sans-serif;-webkit-tap-highlight-color:transparent}input,button,textarea,select{font-family:inherit}::-webkit-scrollbar{display:none}.item-row{display:flex;justify-content:space-between;align-items:center;padding:8px;background:#141414;border-radius:8px;margin-bottom:4px}.item-acts{display:flex;gap:12px;font-size:10px}.item-acts span{cursor:pointer}</style>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#080808;font-family:system-ui,sans-serif;-webkit-tap-highlight-color:transparent}input,button,textarea,select{font-family:inherit}::-webkit-scrollbar{display:none}</style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.24.7/babel.min.js"></script>
@@ -20,8 +20,8 @@
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const {useState,useEffect,useRef}=React;
-
+const {useState,useEffect,useRef} = React;
+ 
 const fmt=(n)=>{if(!n&&n!==0)return'\u2014';const num=parseFloat(n);if(isNaN(num))return'\u2014';if(num>=10000000)return'\u20B9'+(num/10000000).toFixed(2)+'Cr';if(num>=100000)return'\u20B9'+(num/100000).toFixed(2)+'L';if(num>=1000)return'\u20B9'+(num/1000).toFixed(1)+'K';return'\u20B9'+num.toFixed(0);};
 const f=(n)=>parseFloat(n)||0;
 const pct=(c,b)=>b>0?(((c-b)/b)*100).toFixed(1):'0.0';
@@ -32,35 +32,40 @@ const daysHeld=(d)=>daysBetween(d,new Date().toISOString().split('T')[0]);
 const fmtDate=(d)=>d?new Date(d).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}):'\u2014';
 const calcFD=(p,r,days,freq=4)=>f(p)*Math.pow(1+f(r)/100/freq,freq*days/365);
 const todayStr=()=>new Date().toISOString().split('T')[0];
-const ld=(k,fb)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):fb;}catch{return fb;}};
-const sv=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch{}};
-const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const load=(key,fb)=>{try{const v=localStorage.getItem(key);return v?JSON.parse(v):fb;}catch{return fb;}};
+const save=(key,val)=>{try{localStorage.setItem(key,JSON.stringify(val));}catch{}};
 const addYears=(d,y)=>{const dt=new Date(d);dt.setFullYear(dt.getFullYear()+y);return dt.toISOString().split('T')[0];};
-
-const _ds={display:'flex',justifyContent:'space-between',alignItems:'center',padding:'6px 0',borderBottom:'1px solid #141414'};
-const _ls={fontSize:'10px',fontWeight:600,color:'#3A3A3A',textTransform:'uppercase',letterSpacing:'1px',marginBottom:'4px'};
-const _is={width:'100%',background:'#141414',border:'1px solid #222',borderRadius:'8px',padding:'9px 11px',fontSize:'14px',color:'#F2C94C',outline:'none',boxSizing:'border-box',fontFamily:'inherit'};
-const _ss={..._is,fontSize:'12px'};
-
-function Dr({label,val,color,bold}){return<div style={_ds}><span style={{fontSize:'12px',color:'#555'}}>{label}</span><span style={{fontSize:'12px',fontWeight:bold?800:600,color:color||'#F2C94C'}}>{val}</span></div>;}
-function Inp({label,value,onChange,type='number',placeholder='0'}){return<div style={{marginBottom:'8px'}}><div style={_ls}>{label}</div><input style={_is} type={type} placeholder={placeholder} value={value} onChange={onChange}/></div>;}
-function Sel({label,value,onChange,options}){return<div style={{marginBottom:'8px'}}><div style={_ls}>{label}</div><select style={_ss} value={value} onChange={onChange}><option value="">Select</option>{options.map(o=><option key={o} value={o}>{o}</option>)}</select></div>;}
-function Rule({icon,title,desc}){return<div style={{padding:'8px',background:'#141414',borderRadius:'8px',marginBottom:'4px'}}><div style={{fontSize:'11px',fontWeight:700,color:'#F2C94C',marginBottom:'2px'}}>{icon} {title}</div><div style={{fontSize:'11px',color:'#555',lineHeight:1.5}}>{desc}</div></div>;}
-
+const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+ 
 function PinScreen({onUnlock}){
-  const sp=ld('w_pin',null);const[mode]=useState(sp?'enter':'setup');const[pin,setPin]=useState('');const[cp,setCp]=useState('');const[err,setErr]=useState('');const[step,setStep]=useState(1);
-  const hk=(d)=>{setErr('');if(mode==='enter'){const n=pin+d;setPin(n);if(n.length===4){if(n===sp)onUnlock();else{setErr('Wrong PIN');setPin('');}}}else{if(step===1){const n=pin+d;setPin(n);if(n.length===4){setStep(2);setCp('');}}else{const n=cp+d;setCp(n);if(n.length===4){if(n===pin){sv('w_pin',pin);onUnlock();}else{setErr("PINs don't match");setPin('');setCp('');setStep(1);}}}}};
-  const hd=()=>{setErr('');if(mode==='enter')setPin(pin.slice(0,-1));else if(step===1)setPin(pin.slice(0,-1));else setCp(cp.slice(0,-1));};
-  const cur=mode==='enter'?pin:(step===1?pin:cp);const title=mode==='enter'?'Enter PIN':(step===1?'Set a 4-digit PIN':'Confirm PIN');
-  return(<div style={{background:'#080808',minHeight:'100vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',maxWidth:'400px',margin:'0 auto',padding:'20px'}}>
-    <div style={{fontSize:'40px',marginBottom:'16px'}}>{'\uD83D\uDC8E'}</div><div style={{fontSize:'18px',fontWeight:800,color:'#F2C94C',marginBottom:'6px'}}>Wealth Dashboard</div><div style={{fontSize:'13px',color:'#6A500A',marginBottom:'28px'}}>{title}</div>
-    <div style={{display:'flex',gap:'14px',marginBottom:'8px'}}>{[0,1,2,3].map(i=><div key={i} style={{width:'16px',height:'16px',borderRadius:'50%',border:'2px solid #6A500A',background:i<cur.length?'#F2C94C':'transparent'}}/>)}</div>
-    {err?<div style={{fontSize:'12px',color:'#EF4444',height:'26px',lineHeight:'26px'}}>{err}</div>:<div style={{height:'26px'}}/>}
-    <div style={{display:'grid',gridTemplateColumns:'repeat(3,72px)',gap:'10px',marginTop:'8px'}}>{[1,2,3,4,5,6,7,8,9,'',0,'\u232B'].map(k=>{if(k==='')return<div key="e"/>;return<button key={k} onClick={()=>k==='\u232B'?hd():hk(String(k))} style={{width:'72px',height:'56px',borderRadius:'12px',border:'none',fontSize:k==='\u232B'?'20px':'22px',fontWeight:700,cursor:'pointer',background:k==='\u232B'?'transparent':'#141414',color:k==='\u232B'?'#6A500A':'#F2C94C'}}>{k}</button>;})}</div>
-    {mode==='enter'&&<button onClick={()=>{if(confirm('Erase PIN and ALL data?')){localStorage.clear();location.reload();}}} style={{marginTop:'32px',background:'none',border:'none',color:'#2A2A2A',fontSize:'10px',cursor:'pointer'}}>Forgot PIN? Reset everything</button>}
-  </div>);
+  const storedPin=load('w_pin',null);
+  const [mode]=useState(storedPin?'enter':'setup');
+  const [pin,setPin]=useState('');
+  const [confirmPin,setConfirmPin]=useState('');
+  const [error,setError]=useState('');
+  const [step,setStep]=useState(1);
+  const handleKey=(digit)=>{setError('');
+    if(mode==='enter'){const n=pin+digit;setPin(n);if(n.length===4){if(n===storedPin)onUnlock();else{setError('Wrong PIN');setPin('');}}}
+    else{if(step===1){const n=pin+digit;setPin(n);if(n.length===4){setStep(2);setConfirmPin('');}}else{const n=confirmPin+digit;setConfirmPin(n);if(n.length===4){if(n===pin){save('w_pin',pin);onUnlock();}else{setError("PINs don't match");setPin('');setConfirmPin('');setStep(1);}}}}
+  };
+  const handleDel=()=>{setError('');if(mode==='enter')setPin(pin.slice(0,-1));else if(step===1)setPin(pin.slice(0,-1));else setConfirmPin(confirmPin.slice(0,-1));};
+  const cur=mode==='enter'?pin:(step===1?pin:confirmPin);
+  const title=mode==='enter'?'Enter PIN':(step===1?'Set a 4-digit PIN':'Confirm PIN');
+  return(
+    <div style={{background:'#080808',minHeight:'100vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',maxWidth:'400px',margin:'0 auto',padding:'20px'}}>
+      <div style={{fontSize:'40px',marginBottom:'16px'}}>{'\uD83D\uDC8E'}</div>
+      <div style={{fontSize:'18px',fontWeight:800,color:'#F2C94C',marginBottom:'6px'}}>Wealth Dashboard</div>
+      <div style={{fontSize:'13px',color:'#6A500A',marginBottom:'28px'}}>{title}</div>
+      <div style={{display:'flex',gap:'14px',marginBottom:'8px'}}>{[0,1,2,3].map(i=><div key={i} style={{width:'16px',height:'16px',borderRadius:'50%',border:'2px solid #6A500A',background:i<cur.length?'#F2C94C':'transparent'}}/>)}</div>
+      {error?<div style={{fontSize:'12px',color:'#EF4444',height:'26px',lineHeight:'26px'}}>{error}</div>:<div style={{height:'26px'}}/>}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(3,72px)',gap:'10px',marginTop:'8px'}}>
+        {[1,2,3,4,5,6,7,8,9,'',0,'\u232B'].map(k=>{if(k==='')return<div key="e"/>;return<button key={k} onClick={()=>k==='\u232B'?handleDel():handleKey(String(k))} style={{width:'72px',height:'56px',borderRadius:'12px',border:'none',fontSize:k==='\u232B'?'20px':'22px',fontWeight:700,cursor:'pointer',background:k==='\u232B'?'transparent':'#141414',color:k==='\u232B'?'#6A500A':'#F2C94C'}}>{k}</button>;})}
+      </div>
+      {mode==='enter'&&<button onClick={()=>{if(confirm('Erase PIN and ALL data?')){localStorage.clear();location.reload();}}} style={{marginTop:'32px',background:'none',border:'none',color:'#2A2A2A',fontSize:'10px',cursor:'pointer'}}>Forgot PIN? Reset everything</button>}
+    </div>
+  );
 }
-
+ 
 function NWChart({history}){
   if(!history||history.length<2)return null;
   var data=history.slice(-30),vals=data.map(d=>d.nw),minV=Math.min(...vals),maxV=Math.max(...vals),range=maxV-minV||1,W=340,H=120,pY=10;
@@ -72,121 +77,149 @@ function NWChart({history}){
     <div style={{display:'flex',justifyContent:'space-between',marginTop:'4px'}}><span style={{fontSize:'9px',color:'#3A3A3A'}}>{first.date}</span><span style={{fontSize:'9px',color:'#3A3A3A'}}>{last.date}</span></div>
   </div>);
 }
-
+ 
+const _drS={display:'flex',justifyContent:'space-between',alignItems:'center',padding:'6px 0',borderBottom:'1px solid #141414'};
+const _lblS={fontSize:'10px',fontWeight:600,color:'#3A3A3A',textTransform:'uppercase',letterSpacing:'1px',marginBottom:'4px'};
+const _inpS={width:'100%',background:'#141414',border:'1px solid #222',borderRadius:'8px',padding:'9px 11px',fontSize:'14px',color:'#F2C94C',outline:'none',boxSizing:'border-box',fontFamily:'inherit'};
+ 
+function Dr({label,val,color,bold}){return<div style={_drS}><span style={{fontSize:'12px',color:'#555'}}>{label}</span><span style={{fontSize:'12px',fontWeight:bold?800:600,color:color||'#F2C94C'}}>{val}</span></div>;}
+function Inp({label,value,onChange,type='number',placeholder='0'}){return<div style={{marginBottom:'8px'}}><div style={_lblS}>{label}</div><input style={_inpS} type={type} placeholder={placeholder} value={value} onChange={onChange}/></div>;}
+function Sel({label,value,onChange,options}){return<div style={{marginBottom:'8px'}}><div style={_lblS}>{label}</div><select style={{..._inpS,fontSize:'12px'}} value={value} onChange={onChange}><option value="">Select</option>{options.map(o=><option key={o} value={o}>{o}</option>)}</select></div>;}
+function InfoBox({color='#6A500A',bg='#0D0B00',children}){return<div style={{fontSize:'11px',color,padding:'8px',background:bg,borderRadius:'8px',marginTop:'6px',lineHeight:1.6}}>{children}</div>;}
+ 
 function WealthApp(){
-  const[locked,setLocked]=useState(()=>!!ld('w_pin',null));
-  const[tab,setTab]=useState('home');
-  const[subTab,setSubTab]=useState('portfolio');
-  const[refreshing,setRefreshing]=useState(false);
-  const[showSettings,setShowSettings]=useState(false);
-  const[editId,setEditId]=useState(null);
-
+  const [locked,setLocked]=useState(()=>!!load('w_pin',null));
+  const [tab,setTab]=useState('home');
+  const [subTab,setSubTab]=useState('portfolio');
+  const [refreshing,setRefreshing]=useState(false);
+  const [showSettings,setShowSettings]=useState(false);
+ 
   // Prices
-  const[prices,setPrices]=useState(()=>ld('w_prices',{gold24k:9500,gold22k:8700,gold18k:7125,silver:105,updated:null}));
-  const[editingPrices,setEditingPrices]=useState(false);
-  const[tempPrices,setTempPrices]=useState({});
-
-  // Metal items [{id,category,desc,weight,value,purchasePrice}]
-  const[metalItems,setMetalItems]=useState(()=>ld('w_mi',[]));
-  const[addingMetalCat,setAddingMetalCat]=useState(null);
-  const[newMI,setNewMI]=useState({desc:'',weight:'',value:'',purchasePrice:''});
-
+  const [prices,setPrices]=useState(()=>load('w_prices',{gold24k:9500,gold22k:8700,gold18k:7125,silver:105,updated:null}));
+  const [editingPrices,setEditingPrices]=useState(false);
+  const [tempPrices,setTempPrices]=useState({});
+ 
+  // Metal Items (individual pieces)
+  const [metalItems,setMetalItems]=useState(()=>load('w_metalItems',[]));
+  const [addingMetalCat,setAddingMetalCat]=useState(null);
+  const [newMetalItem,setNewMetalItem]=useState({desc:'',weight:'',value:'',cost:''});
+  const [editingMetalId,setEditingMetalId]=useState(null);
+ 
   // SGB
-  const[sgb,setSgb]=useState(()=>ld('w_sgb',{grams:'',purchasePrice:'',purchaseType:'primary',purchaseDate:''}));
-
+  const [sgb,setSgb]=useState(()=>load('w_sgb',{grams:'',purchasePrice:'',purchaseType:'primary',purchaseDate:''}));
+ 
   // Govt schemes
-  const[ppf,setPpf]=useState(()=>ld('w_ppf',{balance:'',startDate:'',monthlyContrib:'',interestRate:'7.1'}));
-  const[nps,setNps]=useState(()=>ld('w_nps',{balance:'',monthlyContrib:'',age:'',retireAge:'60'}));
-  const[epf,setEpf]=useState(()=>ld('w_epf',{balance:'',monthlyContrib:'',employerContrib:'',serviceYears:'',interestRate:'8.25'}));
-
-  // Markets
-  const[mfHoldings,setMfHoldings]=useState(()=>ld('w_mf',[]));
-  const[sips,setSips]=useState(()=>ld('w_sips',[]));
-  const[stocks,setStocks]=useState(()=>ld('w_stocks',[]));
-  const[crypto,setCrypto]=useState(()=>ld('w_crypto',[]));
-  const[fds,setFds]=useState(()=>ld('w_fds',[]));
-
-  // Form states
-  const[addingMf,setAddingMf]=useState(false);
-  const[mfSearch,setMfSearch]=useState('');
-  const[mfResults,setMfResults]=useState([]);
-  const[searching,setSearching]=useState(false);
-  const[newMf,setNewMf]=useState({schemeCode:'',schemeName:'',units:'',avgNav:'',type:'equity'});
-  const[linkingMfId,setLinkingMfId]=useState(null);
-  const[linkSearch,setLinkSearch]=useState('');
-  const[linkResults,setLinkResults]=useState([]);
-
-  const[addingSip,setAddingSip]=useState(false);
-  const[newSip,setNewSip]=useState({name:'',amount:'',debitDate:'',startDate:'',frequency:'monthly',units:'',status:'active'});
-
-  const[addingStock,setAddingStock]=useState(false);
-  const[loadingStocks,setLoadingStocks]=useState(false);
-  const[newStock,setNewStock]=useState({symbol:'',name:'',qty:'',avgPrice:''});
-  const[stockSearch,setStockSearch]=useState('');
-  const[stockResults,setStockResults]=useState([]);
-
-  const[addingCrypto,setAddingCrypto]=useState(false);
-  const[newCrypto,setNewCrypto]=useState({coin:'bitcoin',symbol:'BTC',qty:'',buyPrice:''});
-
-  const[selectedFd,setSelectedFd]=useState(null);
-  const[addingFd,setAddingFd]=useState(false);
-  const[fdForm,setFdForm]=useState({bank:'',principal:'',rate:'',startDate:'',maturityDate:'',tenureMonths:'',compounding:'4'});
-  const[wdDate,setWdDate]=useState('');
-  const[penalty,setPenalty]=useState('1');
-
+  const [ppf,setPpf]=useState(()=>load('w_ppf',{balance:'',monthlyContrib:'',startDate:'',interestRate:'7.1'}));
+  const [nps,setNps]=useState(()=>load('w_nps',{balance:'',monthlyContrib:'',employerContrib:'',age:'',startDate:''}));
+  const [epf,setEpf]=useState(()=>load('w_epf',{balance:'',monthlyContrib:'',employerContrib:'',serviceYears:'',interestRate:'8.25'}));
+ 
   // Tax
-  const[taxProfile,setTaxProfile]=useState(()=>ld('w_tax',{regime:'new',entries:[]}));
-  const[addingIncome,setAddingIncome]=useState(false);
-  const[newIncome,setNewIncome]=useState({month:'',year:'',income:''});
-
+  const [taxProfile,setTaxProfile]=useState(()=>load('w_tax',{regime:'new',entries:[]}));
+  const [addingIncome,setAddingIncome]=useState(false);
+  const [newIncome,setNewIncome]=useState({month:'',year:'',income:''});
+  const [editingIncomeId,setEditingIncomeId]=useState(null);
+ 
+  // Crypto
+  const [crypto,setCrypto]=useState(()=>load('w_crypto',[]));
+  const [addingCrypto,setAddingCrypto]=useState(false);
+  const [newCrypto,setNewCrypto]=useState({coin:'bitcoin',symbol:'BTC',qty:'',buyPrice:''});
+  const [editingCryptoId,setEditingCryptoId]=useState(null);
+ 
+  // MF
+  const [mfHoldings,setMfHoldings]=useState(()=>load('w_mf',[]));
+  const [addingMf,setAddingMf]=useState(false);
+  const [newMf,setNewMf]=useState({schemeCode:'',schemeName:'',units:'',avgNav:'',type:'equity'});
+  const [editingMfId,setEditingMfId]=useState(null);
+  const [mfSearch,setMfSearch]=useState('');
+  const [mfResults,setMfResults]=useState([]);
+  const [searching,setSearching]=useState(false);
+  const [linkingMfId,setLinkingMfId]=useState(null);
+  const [linkSearch,setLinkSearch]=useState('');
+  const [linkResults,setLinkResults]=useState([]);
+ 
+  // SIPs
+  const [sips,setSips]=useState(()=>load('w_sips',[]));
+  const [addingSip,setAddingSip]=useState(false);
+  const [newSip,setNewSip]=useState({name:'',amount:'',debitDate:'',startDate:'',frequency:'monthly',units:'',status:'active'});
+  const [editingSipId,setEditingSipId]=useState(null);
+ 
+  // Stocks
+  const [stocks,setStocks]=useState(()=>load('w_stocks',[]));
+  const [addingStock,setAddingStock]=useState(false);
+  const [newStock,setNewStock]=useState({symbol:'',name:'',qty:'',avgPrice:''});
+  const [editingStockId,setEditingStockId]=useState(null);
+  const [loadingStocks,setLoadingStocks]=useState(false);
+  const [stockSearch,setStockSearch]=useState('');
+  const [stockResults,setStockResults]=useState([]);
+ 
+  // FDs
+  const [fds,setFds]=useState(()=>load('w_fds',[]));
+  const [addingFd,setAddingFd]=useState(false);
+  const [fdForm,setFdForm]=useState({bank:'',principal:'',rate:'',startDate:'',maturityDate:'',tenureMonths:'',compounding:'4'});
+  const [selectedFd,setSelectedFd]=useState(null);
+  const [editingFdId,setEditingFdId]=useState(null);
+  const [wdDate,setWdDate]=useState('');
+  const [penalty,setPenalty]=useState('1');
+ 
   // Debt
-  const[debts,setDebts]=useState(()=>ld('w_debts',[]));
-  const[addingDebt,setAddingDebt]=useState(false);
-  const[newDebt,setNewDebt]=useState({type:'home_loan',name:'',originalAmt:'',outstanding:'',rate:'',emi:'',tenureLeft:'',startDate:'',notes:''});
-
+  const [debts,setDebts]=useState(()=>load('w_debts',[]));
+  const [addingDebt,setAddingDebt]=useState(false);
+  const [newDebt,setNewDebt]=useState({type:'homeloan',name:'',originalAmount:'',outstanding:'',interestRate:'',emi:'',tenureMonths:'',startDate:'',notes:''});
+  const [editingDebtId,setEditingDebtId]=useState(null);
+ 
   // Import
-  const[importPreview,setImportPreview]=useState(null);
+  const [importPreview,setImportPreview]=useState(null);
   const stockFileRef=useRef(null);
   const mfFileRef=useRef(null);
-
-  const[nwHistory,setNwHistory]=useState(()=>ld('w_nwhistory',[]));
+ 
+  // History
+  const [nwHistory,setNwHistory]=useState(()=>load('w_nwhistory',[]));
   const didAutoRefresh=useRef(false);
-
-  const uPrices=(p)=>{setPrices(p);sv('w_prices',p);};
-  const uMI=(v)=>{setMetalItems(v);sv('w_mi',v);};
-  const uSgb=(v)=>{setSgb(v);sv('w_sgb',v);};
-  const uPpf=(v)=>{setPpf(v);sv('w_ppf',v);};
-  const uNps=(v)=>{setNps(v);sv('w_nps',v);};
-  const uEpf=(v)=>{setEpf(v);sv('w_epf',v);};
-  const uMf=(v)=>{setMfHoldings(v);sv('w_mf',v);};
-  const uSips=(v)=>{setSips(v);sv('w_sips',v);};
-  const uStocks=(v)=>{setStocks(v);sv('w_stocks',v);};
-  const uCrypto=(v)=>{setCrypto(v);sv('w_crypto',v);};
-  const uFds=(v)=>{setFds(v);sv('w_fds',v);};
-  const uTax=(v)=>{setTaxProfile(v);sv('w_tax',v);};
-  const uDebts=(v)=>{setDebts(v);sv('w_debts',v);};
-
-  const fetchNAV=async(code)=>{try{const r=await fetch('https://api.mfapi.in/mf/'+code+'/latest');const d=await r.json();if(d&&d.data&&d.data[0])return{nav:parseFloat(d.data[0].nav),date:d.data[0].date};}catch{}return null;};
+ 
+  // Save helpers
+  const saveTimers=useRef({});
+  const dSave=(key,val)=>{clearTimeout(saveTimers.current[key]);saveTimers.current[key]=setTimeout(()=>save(key,val),500);};
+  const uPrices=(p)=>{setPrices(p);save('w_prices',p);};
+  const uMetalItems=(v)=>{setMetalItems(v);save('w_metalItems',v);};
+  const uSgb=(v)=>{setSgb(v);dSave('w_sgb',v);};
+  const uPpf=(v)=>{setPpf(v);dSave('w_ppf',v);};
+  const uNps=(v)=>{setNps(v);dSave('w_nps',v);};
+  const uEpf=(v)=>{setEpf(v);dSave('w_epf',v);};
+  const uTax=(v)=>{setTaxProfile(v);save('w_tax',v);};
+  const uCrypto=(v)=>{setCrypto(v);save('w_crypto',v);};
+  const uMf=(v)=>{setMfHoldings(v);save('w_mf',v);};
+  const uSips=(v)=>{setSips(v);save('w_sips',v);};
+  const uStocks=(v)=>{setStocks(v);save('w_stocks',v);};
+  const uFds=(v)=>{setFds(v);save('w_fds',v);};
+  const uDebts=(v)=>{setDebts(v);save('w_debts',v);};
+ 
+  // Edit helper: opens form pre-filled, saves update
+  const startEdit=(item,setEditing,setForm,formFields)=>{setEditing(item.id);const obj={};formFields.forEach(k=>{obj[k]=item[k]||'';});setForm(obj);};
+ 
+  // APIs
+  const fetchNAV=async(code)=>{if(!code)return null;try{const r=await fetch('https://api.mfapi.in/mf/'+code+'/latest');const d=await r.json();if(d&&d.data&&d.data[0])return{nav:parseFloat(d.data[0].nav),date:d.data[0].date};}catch{}return null;};
   const searchMFn=async(q)=>{if(!q||q.length<2){setMfResults([]);return;}setSearching(true);try{const r=await fetch('https://api.mfapi.in/mf/search?q='+encodeURIComponent(q));const d=await r.json();setMfResults((Array.isArray(d)?d:[]).slice(0,7));}catch{setMfResults([]);}setSearching(false);};
   const fetchSP=async(list)=>{if(!list.length)return list;try{const sym=list.map(s=>s.symbol).join(',');const r=await fetch('/api/stocks?symbols='+encodeURIComponent(sym));const arr=await r.json();if(Array.isArray(arr)){const m={};arr.forEach(p=>{if(p.symbol)m[p.symbol.toUpperCase()]=p;});return list.map(s=>{const fd=m[s.symbol.toUpperCase()];return fd&&fd.price?{...s,currentPrice:fd.price,change:fd.change}:s;});}}catch{}return list;};
-  const searchStocks=async(q)=>{if(!q||q.length<2){setStockResults([]);return;}try{const r=await fetch('/api/stocks?search='+encodeURIComponent(q));const d=await r.json();setStockResults(Array.isArray(d)?d.slice(0,6):[]);}catch{setStockResults([]);}};
   const fetchCryptoPrices=async(list)=>{if(!list.length)return list;try{const ids=list.map(c=>c.coin).join(',');const r=await fetch('https://api.coingecko.com/api/v3/simple/price?ids='+encodeURIComponent(ids)+'&vs_currencies=inr&include_24hr_change=true');const d=await r.json();return list.map(c=>{const p=d[c.coin];return p?{...c,priceINR:p.inr,change24h:p.inr_24h_change}:c;});}catch{}return list;};
-
-  // Import helpers
-  const parseFile=(file,cb)=>{const reader=new FileReader();reader.onload=(e)=>{try{const wb=XLSX.read(e.target.result,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];cb(XLSX.utils.sheet_to_json(ws,{defval:''}));}catch(err){alert('Could not read: '+err.message);}};reader.readAsArrayBuffer(file);};
-  const findCol=(row,cs)=>{const keys=Object.keys(row);for(const c of cs){const found=keys.find(k=>k.toLowerCase().replace(/[^a-z0-9]/g,'').includes(c.toLowerCase().replace(/[^a-z0-9]/g,'')));if(found)return found;}return null;};
-  const importStocks=(file)=>{parseFile(file,(rows)=>{if(!rows.length){alert('No data');return;}const sc=findCol(rows[0],['instrument','symbol','stock','trading symbol','scrip']);const qc=findCol(rows[0],['qty','quantity','shares']);const ac=findCol(rows[0],['avg cost','avg price','average cost','buy avg','cost price']);if(!sc||!qc){alert('Could not find columns. Found: '+Object.keys(rows[0]).join(', '));return;}const parsed=rows.filter(r=>r[sc]&&f(r[qc])>0).map(r=>({id:Date.now()+Math.random(),symbol:String(r[sc]).replace(/-.*$/,'').replace(/\s+/g,'').toUpperCase(),name:String(r[sc]).replace(/-.*$/,'').trim(),qty:f(r[qc]),avgPrice:ac?f(r[ac]):0,currentPrice:null,change:null}));if(!parsed.length){alert('No valid rows');return;}setImportPreview({type:'stocks',data:parsed});});};
-  const importMF=(file)=>{parseFile(file,(rows)=>{if(!rows.length){alert('No data');return;}const nc=findCol(rows[0],['scheme','fund name','fund','scheme name']);const uc=findCol(rows[0],['units','unit','quantity']);const ac=findCol(rows[0],['avg nav','avg cost','average nav','cost price']);if(!nc||!uc){alert('Could not find columns. Found: '+Object.keys(rows[0]).join(', '));return;}const parsed=rows.filter(r=>r[nc]&&f(r[uc])>0).map(r=>({id:Date.now()+Math.random(),schemeCode:'',schemeName:String(r[nc]).trim(),units:f(r[uc]),avgNav:ac?f(r[ac]):0,type:'equity',currentNav:null,navDate:null}));if(!parsed.length){alert('No valid rows');return;}setImportPreview({type:'funds',data:parsed});});};
+  const searchStockFn=async(q)=>{if(!q||q.length<2){setStockResults([]);return;}try{const r=await fetch('/api/stocks?symbols='+encodeURIComponent(q));const arr=await r.json();if(Array.isArray(arr))setStockResults(arr.filter(s=>s.price).slice(0,5));else setStockResults([]);}catch{setStockResults([]);}};
+ 
+  // Import
+  const parseFile=(file,cb)=>{const reader=new FileReader();reader.onload=(e)=>{try{const wb=XLSX.read(e.target.result,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];const rows=XLSX.utils.sheet_to_json(ws,{defval:''});cb(rows);}catch(err){alert('Could not read file: '+err.message);}};reader.readAsArrayBuffer(file);};
+  const findCol=(row,candidates)=>{const keys=Object.keys(row);for(const c of candidates){const found=keys.find(k=>k.toLowerCase().replace(/[^a-z0-9]/g,'').includes(c.toLowerCase().replace(/[^a-z0-9]/g,'')));if(found)return found;}return null;};
+  const importStocks=(file)=>{parseFile(file,(rows)=>{if(!rows.length){alert('No data');return;}const symCol=findCol(rows[0],['instrument','symbol','stock','trading symbol','scrip','name']);const qtyCol=findCol(rows[0],['qty','quantity','shares','units']);const avgCol=findCol(rows[0],['avg cost','avg price','average cost','average price','buy avg','cost price','buy price']);if(!symCol||!qtyCol){alert('Could not find columns. Found: '+Object.keys(rows[0]).join(', '));return;}const parsed=rows.filter(r=>r[symCol]&&f(r[qtyCol])>0).map(r=>({id:Date.now()+Math.random(),symbol:String(r[symCol]).replace(/-.*$/,'').replace(/\s+/g,'').toUpperCase(),name:String(r[symCol]).replace(/-.*$/,'').trim(),qty:f(r[qtyCol]),avgPrice:avgCol?f(r[avgCol]):0,currentPrice:null,change:null}));if(!parsed.length){alert('No valid rows');return;}setImportPreview({type:'stocks',data:parsed});});};
+  const importMF=(file)=>{parseFile(file,(rows)=>{if(!rows.length){alert('No data');return;}const nameCol=findCol(rows[0],['scheme','fund name','fund','scheme name']);const unitsCol=findCol(rows[0],['units','unit','quantity']);const navCol=findCol(rows[0],['avg nav','avg cost','average nav','invested nav','purchase nav','cost price']);if(!nameCol||!unitsCol){alert('Could not find columns. Found: '+Object.keys(rows[0]).join(', '));return;}const parsed=rows.filter(r=>r[nameCol]&&f(r[unitsCol])>0).map(r=>({id:Date.now()+Math.random(),schemeCode:'',schemeName:String(r[nameCol]).trim(),units:f(r[unitsCol]),avgNav:navCol?f(r[navCol]):0,type:'equity',currentNav:null,navDate:null}));if(!parsed.length){alert('No valid rows');return;}setImportPreview({type:'funds',data:parsed});});};
   const confirmImport=async()=>{if(!importPreview)return;if(importPreview.type==='stocks'){const merged=[...stocks,...importPreview.data];const updated=await fetchSP(merged);uStocks(updated);}else{uMf([...mfHoldings,...importPreview.data]);}setImportPreview(null);};
-
-  // Computed
+ 
+  // Computed values
   const catRate=(cat)=>cat==='gold24k'?prices.gold24k:cat==='gold22k'?prices.gold22k:cat==='gold18k'?prices.gold18k:cat==='goldJewellery'?prices.gold22k:cat==='silver'||cat==='silverArticles'?prices.silver:0;
   const catTotal=(cat)=>metalItems.filter(i=>i.category===cat).reduce((s,i)=>cat==='diamond'?s+f(i.value):s+f(i.weight)*(catRate(cat)||0),0);
   const catWeight=(cat)=>metalItems.filter(i=>i.category===cat).reduce((s,i)=>s+f(i.weight),0);
-  const catCost=(cat)=>metalItems.filter(i=>i.category===cat).reduce((s,i)=>s+f(i.purchasePrice),0);
+  const catCost=(cat)=>metalItems.filter(i=>i.category===cat).reduce((s,i)=>s+f(i.cost),0);
   const metalVal=()=>metalItems.reduce((s,i)=>i.category==='diamond'?s+f(i.value):s+f(i.weight)*(catRate(i.category)||0),0);
   const sgbVal=()=>f(sgb.grams)*(prices.gold24k||0);
-  const sgbInterestEarned=()=>{if(!sgb.purchaseDate||!sgb.grams||!sgb.purchasePrice)return 0;const yrs=(new Date()-new Date(sgb.purchaseDate))/(365.25*864e5);return f(sgb.grams)*f(sgb.purchasePrice)*0.025*yrs;};
+  const sgbMatDate=sgb.purchaseDate?addYears(sgb.purchaseDate,8):'';
+  const sgbYrs=sgb.purchaseDate?(new Date()-new Date(sgb.purchaseDate))/(365.25*864e5):0;
+  const sgbInterestEarned=f(sgb.purchasePrice)*f(sgb.grams)*0.025*sgbYrs;
   const cryptoVal=crypto.reduce((s,c)=>s+f(c.qty)*(c.priceINR||0),0);
   const cryptoCost=crypto.reduce((s,c)=>s+f(c.qty)*f(c.buyPrice),0);
   const mfVal=mfHoldings.reduce((s,h)=>s+h.units*(h.currentNav||0),0);
@@ -195,41 +228,26 @@ function WealthApp(){
   const stCost=stocks.reduce((s,h)=>s+h.qty*(h.avgPrice||0),0);
   const fdVal=fds.reduce((s,fd)=>{var held=Math.max(0,daysHeld(fd.startDate));return s+calcFD(fd.principal,fd.rate,held,fd.compounding);},0);
   const fdMatVal=fds.reduce((s,fd)=>s+calcFD(fd.principal,fd.rate,daysBetween(fd.startDate,fd.maturityDate),fd.compounding),0);
-  const govtVal=f(ppf.balance)+f(nps.balance)+f(epf.balance);
-  const totalAssets=metalVal()+sgbVal()+govtVal+mfVal+stVal+cryptoVal+fdVal;
   const totalDebt=debts.reduce((s,d)=>s+f(d.outstanding),0);
+  const totalAssets=metalVal()+sgbVal()+f(ppf.balance)+f(nps.balance)+f(epf.balance)+mfVal+stVal+cryptoVal+fdVal;
   const totalNW=()=>totalAssets-totalDebt;
   const latestIncome=taxProfile.entries&&taxProfile.entries.length>0?f(taxProfile.entries[taxProfile.entries.length-1].income):0;
   const slabRate=()=>{const i=latestIncome;if(taxProfile.regime==='new'){if(i<=400000)return 0;if(i<=800000)return 5;if(i<=1200000)return 10;if(i<=1600000)return 15;if(i<=2000000)return 20;if(i<=2400000)return 25;return 30;}if(i<=250000)return 0;if(i<=500000)return 5;if(i<=1000000)return 20;return 30;};
-
-  const saveSnapshot=(nw)=>{var t=todayStr();var h=ld('w_nwhistory',[]);var l=h.length>0?h[h.length-1]:null;if(l&&l.dk===t)h[h.length-1]={dk:t,date:new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short'}),nw};else h.push({dk:t,date:new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short'}),nw});if(h.length>90)h=h.slice(-90);sv('w_nwhistory',h);setNwHistory(h);};
-
-  const refreshAll=async()=>{setRefreshing(true);var um=mfHoldings,us=stocks,uc=crypto;if(mfHoldings.length){um=await Promise.all(mfHoldings.map(async h=>{if(!h.schemeCode)return h;var n=await fetchNAV(h.schemeCode);return n?{...h,currentNav:n.nav,navDate:n.date}:h;}));uMf(um);}if(stocks.length){us=await fetchSP(stocks);uStocks(us);}if(crypto.length){uc=await fetchCryptoPrices(crypto);uCrypto(uc);}setRefreshing(false);return{mf:um,st:us,cr:uc};};
-
-  useEffect(()=>{if(!locked&&!didAutoRefresh.current){didAutoRefresh.current=true;refreshAll().then(r=>{var mv=(r.mf||[]).reduce((s,h)=>s+h.units*(h.currentNav||0),0);var sv2=(r.st||[]).reduce((s,h)=>s+h.qty*(h.currentPrice||0),0);var cv=(r.cr||[]).reduce((s,c)=>s+f(c.qty)*(c.priceINR||0),0);var nw=metalVal()+sgbVal()+govtVal+mv+sv2+cv+fdVal-totalDebt;if(nw>0)saveSnapshot(nw);});}},[locked]);
-
-  const addMfFn=async()=>{if(!newMf.schemeCode||!newMf.units)return;const nav=await fetchNAV(newMf.schemeCode);uMf([...mfHoldings,{id:Date.now(),schemeCode:newMf.schemeCode,schemeName:newMf.schemeName,units:f(newMf.units),avgNav:f(newMf.avgNav),type:newMf.type,currentNav:nav?nav.nav:null,navDate:nav?nav.date:null}]);setNewMf({schemeCode:'',schemeName:'',units:'',avgNav:'',type:'equity'});setMfSearch('');setMfResults([]);setAddingMf(false);};
-  const addStockFn=async()=>{if(!newStock.symbol||!newStock.qty)return;setLoadingStocks(true);const h={id:Date.now(),symbol:newStock.symbol.toUpperCase(),name:newStock.name||newStock.symbol.toUpperCase(),qty:f(newStock.qty),avgPrice:f(newStock.avgPrice),currentPrice:null,change:null};const wp=await fetchSP([h]);uStocks([...stocks,wp[0]]);setNewStock({symbol:'',name:'',qty:'',avgPrice:''});setStockSearch('');setStockResults([]);setAddingStock(false);setLoadingStocks(false);};
-
-  const exportCSV=()=>{var rows=[['Category','Item','Qty','Cost','Value']];metalItems.forEach(i=>rows.push(['Metal',i.category+(i.desc?' - '+i.desc:''),i.category==='diamond'?'':i.weight+'g',i.purchasePrice||'',i.category==='diamond'?String(f(i.value)):String(f(i.weight)*(catRate(i.category)||0))]));if(sgb.grams)rows.push(['SGB','Gold Bond',sgb.grams+'g',String(f(sgb.purchasePrice)*f(sgb.grams)),String(sgbVal())]);rows.push(['PPF','','','',ppf.balance||'0']);rows.push(['NPS','','','',nps.balance||'0']);rows.push(['EPF','','','',epf.balance||'0']);crypto.forEach(c=>rows.push(['Crypto',c.symbol,String(c.qty),String(f(c.qty)*f(c.buyPrice)),String(f(c.qty)*(c.priceINR||0))]));mfHoldings.forEach(h=>rows.push(['MF',h.schemeName,String(h.units),String(h.units*h.avgNav),String(h.units*(h.currentNav||0))]));sips.forEach(s=>rows.push(['SIP',s.name,s.units||'','\u20B9'+s.amount+'/'+s.frequency,s.status]));stocks.forEach(h=>rows.push(['Stock',h.symbol,String(h.qty),String(h.qty*h.avgPrice),String(h.qty*(h.currentPrice||0))]));fds.forEach(fd=>rows.push(['FD',fd.bank,fd.rate+'%',String(fd.principal),String(calcFD(fd.principal,fd.rate,daysBetween(fd.startDate,fd.maturityDate),fd.compounding))]));debts.forEach(d=>rows.push(['Debt',d.name,'','',' -'+d.outstanding]));rows.push([]);rows.push(['Total Assets','','','',String(totalAssets)]);rows.push(['Total Debt','','','',String(totalDebt)]);rows.push(['NET WORTH','','','',String(totalNW())]);var csv=rows.map(r=>r.map(c=>'"'+String(c||'').replace(/"/g,'""')+'"').join(',')).join('\n');var blob=new Blob([csv],{type:'text/csv'});var u=URL.createObjectURL(blob);var a=document.createElement('a');a.href=u;a.download='wealth_'+todayStr()+'.csv';a.click();URL.revokeObjectURL(u);};
-
-  // Edit helper
-  const startEdit=(section,id,data)=>{setEditId({section,id,data});};
-  const saveEdit=(section)=>{if(!editId)return;const d=editId.data;
-    if(section==='mf')uMf(mfHoldings.map(h=>h.id===editId.id?{...h,...d}:h));
-    if(section==='sip')uSips(sips.map(s=>s.id===editId.id?{...s,...d}:s));
-    if(section==='stock')uStocks(stocks.map(s=>s.id===editId.id?{...s,...d}:s));
-    if(section==='crypto')uCrypto(crypto.map(c=>c.id===editId.id?{...c,...d}:c));
-    if(section==='fd')uFds(fds.map(fd=>fd.id===editId.id?{...fd,...d}:fd));
-    if(section==='metal')uMI(metalItems.map(i=>i.id===editId.id?{...i,...d}:i));
-    if(section==='debt')uDebts(debts.map(x=>x.id===editId.id?{...x,...d}:x));
-    if(section==='income')uTax({...taxProfile,entries:(taxProfile.entries||[]).map(e=>e.id===editId.id?{...e,...d}:e)});
-    setEditId(null);};
-  const isEditing=(section,id)=>editId&&editId.section===section&&editId.id===id;
-  const ed=(key,val)=>setEditId(p=>({...p,data:{...p.data,[key]:val}}));
-
+ 
+  // Snapshot & Refresh
+  const saveSnapshot=(nw)=>{var t=todayStr();var h=load('w_nwhistory',[]);var l=h.length>0?h[h.length-1]:null;if(l&&l.dk===t)h[h.length-1]={dk:t,date:new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short'}),nw};else h.push({dk:t,date:new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short'}),nw});if(h.length>90)h=h.slice(-90);save('w_nwhistory',h);setNwHistory(h);};
+  const refreshAll=async()=>{setRefreshing(true);var um=mfHoldings,us=stocks,uc=crypto;if(mfHoldings.length){um=await Promise.all(mfHoldings.map(async h=>{var n=await fetchNAV(h.schemeCode);return n?{...h,currentNav:n.nav,navDate:n.date}:h;}));uMf(um);}if(stocks.length){us=await fetchSP(stocks);uStocks(us);}if(crypto.length){uc=await fetchCryptoPrices(crypto);uCrypto(uc);}setRefreshing(false);return{mf:um,st:us,cr:uc};};
+  useEffect(()=>{if(!locked&&!didAutoRefresh.current){didAutoRefresh.current=true;refreshAll().then(r=>{var mv=(r.mf||[]).reduce((s,h)=>s+h.units*(h.currentNav||0),0);var sv=(r.st||[]).reduce((s,h)=>s+h.qty*(h.currentPrice||0),0);var cv=(r.cr||[]).reduce((s,c)=>s+f(c.qty)*(c.priceINR||0),0);var nw=metalVal()+sgbVal()+f(ppf.balance)+f(nps.balance)+f(epf.balance)+mv+sv+cv+fdVal-totalDebt;if(nw>0)saveSnapshot(nw);});}},[locked]);
+ 
+  // CSV Export
+  const exportCSV=()=>{var rows=[['Category','Item','Qty','Cost','Value']];metalItems.forEach(i=>rows.push(['Metal',i.category+(i.desc?' - '+i.desc:''),i.category==='diamond'?'':i.weight+'g',i.cost||'',i.category==='diamond'?String(f(i.value)):String(f(i.weight)*(catRate(i.category)||0))]));if(sgb.grams)rows.push(['SGB','Gold Bond',sgb.grams+'g',String(f(sgb.purchasePrice)*f(sgb.grams)),String(sgbVal())]);if(ppf.balance)rows.push(['PPF','','','',ppf.balance]);if(nps.balance)rows.push(['NPS','','','',nps.balance]);if(epf.balance)rows.push(['EPF','','','',epf.balance]);crypto.forEach(c=>rows.push(['Crypto',c.symbol,String(c.qty),String(f(c.qty)*f(c.buyPrice)),String(f(c.qty)*(c.priceINR||0))]));mfHoldings.forEach(h=>rows.push(['MF',h.schemeName,String(h.units),String(h.units*h.avgNav),String(h.units*(h.currentNav||0))]));sips.forEach(s=>rows.push(['SIP',s.name,s.units||'','\u20B9'+s.amount+'/'+s.frequency,s.status]));stocks.forEach(h=>rows.push(['Stock',h.symbol,String(h.qty),String(h.qty*h.avgPrice),String(h.qty*(h.currentPrice||0))]));fds.forEach(fd=>rows.push(['FD',fd.bank,fd.rate+'%',String(fd.principal),String(calcFD(fd.principal,fd.rate,daysBetween(fd.startDate,fd.maturityDate),fd.compounding))]));debts.forEach(d=>rows.push(['Debt',d.name,d.type,'','-'+d.outstanding]));rows.push([]);rows.push(['TOTAL ASSETS','','','',String(totalAssets)]);rows.push(['TOTAL DEBT','','','','-'+String(totalDebt)]);rows.push(['NET WORTH','','','',String(totalNW())]);var csv=rows.map(r=>r.map(c=>'"'+String(c||'').replace(/"/g,'""')+'"').join(',')).join('\n');var blob=new Blob([csv],{type:'text/csv'});var u=URL.createObjectURL(blob);var a=document.createElement('a');a.href=u;a.download='wealth_'+todayStr()+'.csv';a.click();URL.revokeObjectURL(u);};
+ 
+  // Add helpers
+  const addMfFn=async()=>{if(!newMf.schemeCode||!newMf.units)return;const nav=await fetchNAV(newMf.schemeCode);if(editingMfId){uMf(mfHoldings.map(h=>h.id===editingMfId?{...h,schemeCode:newMf.schemeCode,schemeName:newMf.schemeName,units:f(newMf.units),avgNav:f(newMf.avgNav),type:newMf.type,currentNav:nav?nav.nav:h.currentNav,navDate:nav?nav.date:h.navDate}:h));setEditingMfId(null);}else{uMf([...mfHoldings,{id:Date.now(),schemeCode:newMf.schemeCode,schemeName:newMf.schemeName,units:f(newMf.units),avgNav:f(newMf.avgNav),type:newMf.type,currentNav:nav?nav.nav:null,navDate:nav?nav.date:null}]);}setNewMf({schemeCode:'',schemeName:'',units:'',avgNav:'',type:'equity'});setMfSearch('');setMfResults([]);setAddingMf(false);};
+  const addStockFn=async()=>{if(!newStock.symbol||!newStock.qty)return;setLoadingStocks(true);if(editingStockId){const wp=await fetchSP([{symbol:newStock.symbol.toUpperCase(),qty:f(newStock.qty),avgPrice:f(newStock.avgPrice)}]);uStocks(stocks.map(s=>s.id===editingStockId?{...s,symbol:newStock.symbol.toUpperCase(),name:newStock.name||newStock.symbol.toUpperCase(),qty:f(newStock.qty),avgPrice:f(newStock.avgPrice),currentPrice:wp[0]?.currentPrice||s.currentPrice,change:wp[0]?.change||s.change}:s));setEditingStockId(null);}else{const h={id:Date.now(),symbol:newStock.symbol.toUpperCase(),name:newStock.name||newStock.symbol.toUpperCase(),qty:f(newStock.qty),avgPrice:f(newStock.avgPrice),currentPrice:null,change:null};const wp=await fetchSP([h]);uStocks([...stocks,wp[0]]);}setNewStock({symbol:'',name:'',qty:'',avgPrice:''});setStockSearch('');setAddingStock(false);setLoadingStocks(false);};
+ 
   if(locked)return<PinScreen onUnlock={()=>setLocked(false)}/>;
-
+ 
   const S={
     wrap:{background:'#080808',minHeight:'100vh',maxWidth:'400px',margin:'0 auto',fontFamily:'system-ui,sans-serif',paddingBottom:'72px'},
     hdr:{background:'#080808',borderBottom:'1px solid #1A1A1A',padding:'14px 16px 10px',position:'sticky',top:0,zIndex:20},
@@ -237,296 +255,296 @@ function WealthApp(){
     card:{background:'#0F0F0F',border:'1px solid #1C1C1C',borderRadius:'14px',padding:'14px',marginBottom:'10px'},
     cardG:{background:'#0D0B00',border:'1px solid #6A500A',borderRadius:'14px',padding:'14px',marginBottom:'10px'},
     ct:{fontSize:'10px',fontWeight:800,color:'#F2C94C',marginBottom:'10px',letterSpacing:'2px',textTransform:'uppercase'},
+    lbl:_lblS,inp:_inpS,
     chip:(a)=>({padding:'6px 12px',borderRadius:'20px',fontSize:'11px',fontWeight:700,cursor:'pointer',border:a?'none':'1px solid #222',background:a?'#F2C94C':'transparent',color:a?'#080808':'#555'}),
     addBtn:{width:'100%',padding:'11px',background:'#F2C94C',color:'#080808',border:'none',borderRadius:'10px',fontSize:'13px',fontWeight:800,cursor:'pointer',marginTop:'6px'},
-    secBtn:{width:'100%',padding:'8px',background:'#141414',color:'#6A500A',border:'1px solid #6A500A33',borderRadius:'10px',fontSize:'11px',fontWeight:700,cursor:'pointer',marginTop:'4px'},
     refreshBtn:{padding:'5px 11px',background:'transparent',border:'1px solid #6A500A',borderRadius:'8px',color:'#F2C94C',fontSize:'10px',fontWeight:700,cursor:'pointer'},
+    dr:_drS,
     row2:{display:'flex',gap:'8px',marginBottom:'8px'},
     holdCard:{background:'#141414',border:'1px solid #1C1C1C',borderRadius:'12px',padding:'12px',marginBottom:'8px'},
     srRow:{padding:'10px 12px',borderBottom:'1px solid #1C1C1C',cursor:'pointer',fontSize:'11px',color:'#AAA'},
-    tabBtn:(a)=>({padding:'6px 13px',borderRadius:'20px',fontSize:'11px',fontWeight:700,cursor:'pointer',border:'none',background:a?'#F2C94C':'#141414',color:a?'#080808':'#555',whiteSpace:'nowrap',flexShrink:0}),
+    tabBtn:(a)=>({padding:'6px 13px',borderRadius:'20px',fontSize:'11px',fontWeight:700,cursor:'pointer',border:'none',background:a?'#F2C94C':'#141414',color:a?'#080808':'#555',whiteSpace:'nowrap'}),
     nav:{position:'fixed',bottom:0,left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:'400px',background:'#080808',borderTop:'1px solid #1A1A1A',display:'flex',justifyContent:'space-around',padding:'8px 0 12px',zIndex:20},
     ni:(a)=>({display:'flex',flexDirection:'column',alignItems:'center',gap:'2px',cursor:'pointer',opacity:a?1:0.28}),
     nl:(a)=>({fontSize:'8px',fontWeight:800,color:a?'#F2C94C':'#555',textTransform:'uppercase'}),
+    editBtn:{background:'none',border:'none',color:'#6A500A',fontSize:'10px',cursor:'pointer',padding:'2px 6px'},
+    rmBtn:{background:'none',border:'none',color:'#2A2A2A',fontSize:'10px',cursor:'pointer',padding:'2px 6px'},
   };
-  const Acts=({onEdit,onRemove})=><div className="item-acts"><span style={{color:'#6A500A'}} onClick={onEdit}>{'\u270F\uFE0F'}</span><span style={{color:'#2A2A2A'}} onClick={onRemove}>{'\u00D7'}</span></div>;
-
+  const ItemActions=({onEdit,onRemove})=><div style={{display:'flex',gap:'8px',justifyContent:'flex-end',marginTop:'6px'}}><button style={S.editBtn} onClick={onEdit}>{'\u270F\uFE0F'}</button><button style={S.rmBtn} onClick={onRemove}>x</button></div>;
+ 
   const nw=totalNW();
-  const breakdown=[{l:'Metals & Jewellery',v:metalVal()},{l:'SGB',v:sgbVal()},{l:'Govt Schemes',v:govtVal},{l:'Mutual Funds',v:mfVal},{l:'Stocks',v:stVal},{l:'Crypto',v:cryptoVal},{l:'Fixed Deposits',v:fdVal}].filter(x=>x.v>0);
+  const breakdown=[{l:'Metals & Jewellery',v:metalVal()},{l:'SGB',v:sgbVal()},{l:'Govt Schemes',v:f(ppf.balance)+f(nps.balance)+f(epf.balance)},{l:'Mutual Funds',v:mfVal},{l:'Stocks',v:stVal},{l:'Crypto',v:cryptoVal},{l:'Fixed Deposits',v:fdVal}].filter(x=>x.v>0);
   const TABS=[{k:'home',i:'\uD83D\uDC8E',l:'Wealth'},{k:'metals',i:'\uD83E\uDD47',l:'Metals'},{k:'govt',i:'\uD83C\uDFDB\uFE0F',l:'Govt'},{k:'markets',i:'\uD83D\uDCC8',l:'Markets'},{k:'tax',i:'\u2702\uFE0F',l:'Tax'}];
   const titles={home:'\uD83D\uDC8E Net Worth',metals:'\uD83E\uDD47 Metals & Jewellery',govt:'\uD83C\uDFDB\uFE0F Govt Schemes',markets:'\uD83D\uDCC8 Markets',tax:'\u2702\uFE0F Tax Planner'};
-
-  return(<div style={S.wrap}>
-    <div style={S.hdr}>
-      <div style={{fontSize:'9px',letterSpacing:'2px',textTransform:'uppercase',color:'#6A500A'}}>{new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div>
-      <h1 style={{fontSize:'19px',fontWeight:800,color:'#F2C94C',margin:0}}>{titles[tab]}</h1>
+ 
+  return(
+    <div style={S.wrap}>
+      <div style={S.hdr}>
+        <div style={{fontSize:'9px',letterSpacing:'2px',textTransform:'uppercase',color:'#6A500A',marginBottom:'1px'}}>{new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div>
+        <h1 style={{fontSize:'19px',fontWeight:800,color:'#F2C94C',margin:0}}>{titles[tab]}</h1>
+      </div>
+ 
+      {importPreview&&<div style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.9)',zIndex:100,display:'flex',alignItems:'center',justifyContent:'center',padding:'16px'}}>
+        <div style={{background:'#0F0F0F',border:'1px solid #6A500A',borderRadius:'16px',padding:'18px',maxWidth:'380px',width:'100%',maxHeight:'80vh',overflow:'auto'}}>
+          <div style={{fontSize:'14px',fontWeight:800,color:'#F2C94C',marginBottom:'4px'}}>Import {importPreview.type==='stocks'?'Stocks':'Mutual Funds'}</div>
+          <div style={{fontSize:'11px',color:'#22C55E',marginBottom:'12px'}}>{importPreview.data.length} items found</div>
+          {importPreview.data.slice(0,8).map((item,i)=><div key={i} style={{padding:'8px',background:'#141414',borderRadius:'8px',marginBottom:'4px',fontSize:'11px'}}><div style={{color:'#F2C94C',fontWeight:700}}>{importPreview.type==='stocks'?item.symbol:item.schemeName}</div><div style={{color:'#3A3A3A'}}>{importPreview.type==='stocks'?item.qty+' shares':item.units+' units'}</div></div>)}
+          {importPreview.data.length>8&&<div style={{fontSize:'10px',color:'#3A3A3A'}}>...and {importPreview.data.length-8} more</div>}
+          <div style={S.row2}><button style={{...S.addBtn,flex:1}} onClick={confirmImport}>Import All</button><button style={{...S.addBtn,flex:1,background:'#1A1A1A',color:'#888'}} onClick={()=>setImportPreview(null)}>Cancel</button></div>
+        </div>
+      </div>}
+ 
+      {tab==='home'&&<div style={S.pg}>
+        <div style={{...S.cardG,textAlign:'center',padding:'20px 14px'}}>
+          <div style={{fontSize:'9px',color:'#6A500A',letterSpacing:'2px',textTransform:'uppercase',marginBottom:'4px'}}>Net Worth</div>
+          <div style={{fontSize:'34px',fontWeight:800,color:'#F2C94C'}}>{fmt(nw)||'\u20B90'}</div>
+          {totalDebt>0&&<div style={{display:'flex',justifyContent:'center',gap:'16px',marginTop:'8px'}}>
+            <div><div style={{fontSize:'9px',color:'#3A3A3A'}}>ASSETS</div><div style={{fontSize:'13px',fontWeight:700,color:'#22C55E'}}>{fmt(totalAssets)}</div></div>
+            <div><div style={{fontSize:'9px',color:'#3A3A3A'}}>DEBT</div><div style={{fontSize:'13px',fontWeight:700,color:'#EF4444'}}>-{fmt(totalDebt)}</div></div>
+          </div>}
+          {refreshing&&<div style={{fontSize:'10px',color:'#6A500A',marginTop:'6px'}}>Refreshing...</div>}
+          <div style={{display:'flex',gap:'6px',justifyContent:'center',marginTop:'10px',flexWrap:'wrap'}}>
+            <button style={S.refreshBtn} onClick={()=>refreshAll().then(()=>{var n=totalNW();if(n>0)saveSnapshot(n);})} disabled={refreshing}>{refreshing?'...':'\u21BB Refresh'}</button>
+            <button style={S.refreshBtn} onClick={exportCSV}>{'\uD83D\uDCE5'} CSV</button>
+            <button style={S.refreshBtn} onClick={()=>setShowSettings(!showSettings)}>{'\u2699\uFE0F'}</button>
+          </div>
+        </div>
+        {showSettings&&<div style={S.card}><div style={S.ct}>Settings</div>
+          <button style={{...S.addBtn,background:'#1A1A1A',color:'#F2C94C',marginBottom:'8px'}} onClick={()=>{var p=prompt('New 4-digit PIN:');if(p&&/^\d{4}$/.test(p)){save('w_pin',p);alert('PIN updated!');}}}>Change PIN</button>
+          <button style={{...S.addBtn,background:'#1A1A1A',color:'#F2C94C',marginBottom:'8px'}} onClick={()=>{save('w_pin',null);alert('PIN removed.');}}>Remove PIN</button>
+          <button style={{...S.addBtn,background:'#1A0505',color:'#EF4444'}} onClick={()=>{if(confirm('Delete ALL data?')){localStorage.clear();location.reload();}}}>Reset All Data</button>
+        </div>}
+        <NWChart history={nwHistory}/>
+        {breakdown.length>0&&<div style={S.card}><div style={S.ct}>Breakdown</div>{breakdown.map(it=><div key={it.l}><div style={S.dr}><span style={{fontSize:'13px',color:'#777'}}>{it.l}</span><span style={{fontSize:'13px',fontWeight:700,color:'#F2C94C'}}>{fmt(it.v)}</span></div><div style={{height:'3px',background:'#141414',borderRadius:'2px',margin:'2px 0 4px'}}><div style={{height:'100%',width:Math.min(100,(it.v/totalAssets)*100)+'%',background:'#F2C94C',borderRadius:'2px',opacity:0.5}}/></div></div>)}</div>}
+ 
+        {/* Debt Section */}
+        <div style={S.card}><div style={S.ct}>Liabilities</div>
+          {debts.map(d=><div key={d.id} style={{padding:'8px',background:'#141414',borderRadius:'8px',marginBottom:'4px'}}>
+            <div style={{display:'flex',justifyContent:'space-between'}}><div><div style={{fontSize:'12px',fontWeight:700,color:'#EF4444'}}>{d.name}</div><div style={{fontSize:'10px',color:'#3A3A3A'}}>{d.type==='homeloan'?'Home Loan':d.type==='family'?'Family/Friends':'Personal Loan'}{d.interestRate?' \u00B7 '+d.interestRate+'%':''}{d.emi?' \u00B7 EMI \u20B9'+f(d.emi).toLocaleString('en-IN'):''}</div></div><div style={{textAlign:'right'}}><div style={{fontSize:'14px',fontWeight:800,color:'#EF4444'}}>{fmt(f(d.outstanding))}</div></div></div>
+            {d.notes&&<div style={{fontSize:'10px',color:'#444',marginTop:'4px'}}>{d.notes}</div>}
+            <ItemActions onEdit={()=>{setEditingDebtId(d.id);setNewDebt({type:d.type,name:d.name,originalAmount:String(d.originalAmount||''),outstanding:String(d.outstanding),interestRate:String(d.interestRate||''),emi:String(d.emi||''),tenureMonths:String(d.tenureMonths||''),startDate:d.startDate||'',notes:d.notes||''});setAddingDebt(true);}} onRemove={()=>uDebts(debts.filter(x=>x.id!==d.id))}/>
+          </div>)}
+          {totalDebt>0&&<Dr label="Total Debt" val={fmt(totalDebt)} color="#EF4444" bold/>}
+          {!addingDebt?<button style={{...S.addBtn,background:'#1A0505',color:'#EF4444',border:'1px solid #EF444433'}} onClick={()=>{setAddingDebt(true);setEditingDebtId(null);setNewDebt({type:'homeloan',name:'',originalAmount:'',outstanding:'',interestRate:'',emi:'',tenureMonths:'',startDate:'',notes:''});}}>+ Add Debt</button>
+          :<div style={{padding:'10px',background:'#0F0505',borderRadius:'10px',border:'1px solid #EF444422',marginTop:'6px'}}>
+            <div style={{display:'flex',gap:'4px',marginBottom:'10px',flexWrap:'wrap'}}>{[['homeloan','Home Loan'],['personal','Personal Loan'],['family','Family/Friends']].map(([v,l])=><button key={v} style={S.chip(newDebt.type===v)} onClick={()=>setNewDebt(p=>({...p,type:v}))}>{l}</button>)}</div>
+            <Inp label={newDebt.type==='family'?'Borrowed From':'Bank/Lender'} value={newDebt.name} onChange={e=>setNewDebt(p=>({...p,name:e.target.value}))} type="text" placeholder={newDebt.type==='family'?'Parents, Friend...':'SBI, HDFC...'}/>
+            <div style={S.row2}><div style={{flex:1}}><Inp label="Outstanding (\u20B9)" value={newDebt.outstanding} onChange={e=>setNewDebt(p=>({...p,outstanding:e.target.value}))}/></div><div style={{flex:1}}><Inp label="Original Amount" value={newDebt.originalAmount} onChange={e=>setNewDebt(p=>({...p,originalAmount:e.target.value}))}/></div></div>
+            {newDebt.type!=='family'&&<div style={S.row2}><div style={{flex:1}}><Inp label="Interest %" value={newDebt.interestRate} onChange={e=>setNewDebt(p=>({...p,interestRate:e.target.value}))}/></div><div style={{flex:1}}><Inp label="EMI (\u20B9)" value={newDebt.emi} onChange={e=>setNewDebt(p=>({...p,emi:e.target.value}))}/></div></div>}
+            <Inp label="Notes" value={newDebt.notes} onChange={e=>setNewDebt(p=>({...p,notes:e.target.value}))} type="text" placeholder="Down payment, purpose..."/>
+            <div style={S.row2}><button style={{...S.addBtn,flex:1,marginTop:0}} onClick={()=>{if(!newDebt.outstanding||!newDebt.name)return;if(editingDebtId){uDebts(debts.map(d=>d.id===editingDebtId?{...d,...newDebt,outstanding:f(newDebt.outstanding),originalAmount:f(newDebt.originalAmount),interestRate:f(newDebt.interestRate),emi:f(newDebt.emi)}:d));}else{uDebts([...debts,{id:Date.now(),...newDebt,outstanding:f(newDebt.outstanding),originalAmount:f(newDebt.originalAmount),interestRate:f(newDebt.interestRate),emi:f(newDebt.emi)}]);}setNewDebt({type:'homeloan',name:'',originalAmount:'',outstanding:'',interestRate:'',emi:'',tenureMonths:'',startDate:'',notes:''});setAddingDebt(false);setEditingDebtId(null);}}>{editingDebtId?'Update':'Save'}</button><button style={{...S.addBtn,flex:1,marginTop:0,background:'#1A1A1A',color:'#888'}} onClick={()=>{setAddingDebt(false);setEditingDebtId(null);}}>Cancel</button></div>
+          </div>}
+        </div>
+ 
+        {/* Income History */}
+        <div style={S.card}><div style={S.ct}>Tax Profile & Income</div>
+          <div style={{...S.row2,marginBottom:'10px'}}><button style={S.chip(taxProfile.regime==='new')} onClick={()=>uTax({...taxProfile,regime:'new'})}>New Regime</button><button style={S.chip(taxProfile.regime==='old')} onClick={()=>uTax({...taxProfile,regime:'old'})}>Old Regime</button></div>
+          {latestIncome>0&&<div style={{padding:'8px',background:'#141414',borderRadius:'8px',marginBottom:'8px'}}><Dr label="Current Income" val={fmt(latestIncome)}/><Dr label="Slab" val={slabRate()+'%'}/></div>}
+          {(taxProfile.entries||[]).slice().reverse().map(en=><div key={en.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'6px 8px',background:'#141414',borderRadius:'6px',marginBottom:'4px'}}>
+            <div><span style={{fontSize:'12px',color:'#F2C94C',fontWeight:700}}>{fmt(en.income)}</span><span style={{fontSize:'10px',color:'#3A3A3A',marginLeft:'8px'}}>{en.month} {en.year}</span></div>
+            <div><button style={S.editBtn} onClick={()=>{setEditingIncomeId(en.id);setNewIncome({month:en.month,year:String(en.year),income:String(en.income)});setAddingIncome(true);}}>{'\u270F\uFE0F'}</button><button style={S.rmBtn} onClick={()=>uTax({...taxProfile,entries:(taxProfile.entries||[]).filter(x=>x.id!==en.id)})}>x</button></div>
+          </div>)}
+          {!addingIncome?<button style={{...S.addBtn,background:'#141414',color:'#6A500A',border:'1px solid #6A500A33',fontSize:'11px',padding:'8px'}} onClick={()=>{setAddingIncome(true);setEditingIncomeId(null);setNewIncome({month:'',year:'',income:''});}}>+ Add Income Record</button>
+          :<div style={{padding:'8px',background:'#0D0B00',borderRadius:'8px',border:'1px solid #6A500A33',marginTop:'4px'}}>
+            <div style={S.row2}><div style={{flex:1}}><Sel label="Month" value={newIncome.month} onChange={e=>setNewIncome(p=>({...p,month:e.target.value}))} options={MONTHS}/></div><div style={{flex:1}}><Inp label="Year" value={newIncome.year} onChange={e=>setNewIncome(p=>({...p,year:e.target.value}))} placeholder="2025"/></div></div>
+            <Inp label="Annual Income (\u20B9)" value={newIncome.income} onChange={e=>setNewIncome(p=>({...p,income:e.target.value}))} placeholder="1500000"/>
+            <div style={S.row2}><button style={{...S.addBtn,flex:1,marginTop:0}} onClick={()=>{if(!newIncome.income||!newIncome.year)return;if(editingIncomeId){uTax({...taxProfile,entries:(taxProfile.entries||[]).map(e=>e.id===editingIncomeId?{...e,month:newIncome.month||'Apr',year:newIncome.year,income:f(newIncome.income)}:e)});}else{uTax({...taxProfile,entries:[...(taxProfile.entries||[]),{id:Date.now(),month:newIncome.month||'Apr',year:newIncome.year,income:f(newIncome.income)}]});}setNewIncome({month:'',year:'',income:''});setAddingIncome(false);setEditingIncomeId(null);}}>{editingIncomeId?'Update':'Save'}</button><button style={{...S.addBtn,flex:1,marginTop:0,background:'#1A1A1A',color:'#888'}} onClick={()=>{setAddingIncome(false);setEditingIncomeId(null);}}>Cancel</button></div>
+          </div>}
+        </div>
+        {breakdown.length===0&&<div style={{...S.card,textAlign:'center',padding:'28px'}}><div style={{fontSize:'13px',color:'#444'}}>Add investments across tabs below.</div></div>}
+      </div>}
+ 
+      {tab==='metals'&&<div style={S.pg}>
+        <div style={S.cardG}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'10px'}}><div style={S.ct}>Prices (per gram)</div>{!editingPrices?<button style={S.refreshBtn} onClick={()=>{setTempPrices({gold24k:prices.gold24k,gold22k:prices.gold22k,gold18k:prices.gold18k,silver:prices.silver});setEditingPrices(true);}}>Update</button>:<button style={{padding:'7px 14px',background:'#F2C94C',color:'#080808',border:'none',borderRadius:'8px',fontSize:'11px',fontWeight:800,cursor:'pointer'}} onClick={()=>{uPrices({...tempPrices,updated:new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})+' '+new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short'})});setEditingPrices(false);}}>Save</button>}</div>
+          {editingPrices?<div>{[['gold24k','Gold 24K'],['gold22k','Gold 22K'],['gold18k','Gold 18K'],['silver','Silver']].map(p=><Inp key={p[0]} label={p[1]+' (\u20B9/g)'} value={tempPrices[p[0]]||''} onChange={e=>setTempPrices(prev=>({...prev,[p[0]]:parseFloat(e.target.value)||0}))}/>)}</div>
+          :<div>{[['Gold 24K',prices.gold24k],['Gold 22K',prices.gold22k],['Gold 18K',prices.gold18k],['Silver',prices.silver]].map(p=><Dr key={p[0]} label={p[0]} val={'\u20B9'+(p[1]||0).toLocaleString('en-IN')+'/g'}/>)}{prices.updated&&<div style={{fontSize:'9px',color:'#2A2A2A',marginTop:'6px'}}>Updated {prices.updated}</div>}</div>}
+        </div>
+ 
+        {[['gold24k','Gold 24K (Coins/Bars)'],['gold22k','Gold 22K (Coins/Bars)'],['gold18k','Gold 18K'],['goldJewellery','Gold Jewellery (22K)'],['silver','Silver (Coins/Bars)'],['silverArticles','Silver Articles/Utensils'],['diamond','Diamond Jewellery']].map(([cat,label])=>{
+          var items=metalItems.filter(i=>i.category===cat);var isDiamond=cat==='diamond';var total=catTotal(cat);var weight=catWeight(cat);var cost=catCost(cat);
+          return<div key={cat} style={S.card}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'6px'}}><div style={S.ct}>{label}</div>{total>0&&<span style={{fontSize:'13px',fontWeight:700,color:'#F2C94C'}}>{fmt(total)}</span>}</div>
+            {!isDiamond&&weight>0&&<div style={{fontSize:'10px',color:'#6A500A',marginBottom:'8px'}}>Total: {weight.toFixed(1)}g{cost>0?' \u00B7 Cost: '+fmt(cost)+' \u00B7 P&L: '+fmt(total-cost):''}</div>}
+            {items.map(item=><div key={item.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px',background:'#141414',borderRadius:'8px',marginBottom:'4px'}}>
+              <div><div style={{fontSize:'12px',color:'#F2C94C',fontWeight:600}}>{item.desc||cat}</div><div style={{fontSize:'10px',color:'#3A3A3A'}}>{isDiamond?'\u20B9'+f(item.value).toLocaleString('en-IN'):item.weight+'g \u00B7 '+fmt(f(item.weight)*(catRate(cat)||0))}{item.cost?' \u00B7 Cost: '+fmt(f(item.cost)):''}</div></div>
+              <ItemActions onEdit={()=>{setAddingMetalCat(cat);setEditingMetalId(item.id);setNewMetalItem({desc:item.desc||'',weight:String(item.weight||''),value:String(item.value||''),cost:String(item.cost||'')});}} onRemove={()=>uMetalItems(metalItems.filter(x=>x.id!==item.id))}/>
+            </div>)}
+            {addingMetalCat===cat?<div style={{padding:'8px',background:'#0D0B00',borderRadius:'8px',border:'1px solid #6A500A33',marginTop:'4px'}}>
+              <Inp label="Description" value={newMetalItem.desc} onChange={e=>setNewMetalItem(p=>({...p,desc:e.target.value}))} type="text" placeholder={isDiamond?'Ring, Pendant...':'Coin, Chain, Bangle...'}/>
+              {isDiamond?<Inp label="Estimated Value (\u20B9)" value={newMetalItem.value} onChange={e=>setNewMetalItem(p=>({...p,value:e.target.value}))} placeholder="250000"/>
+              :<Inp label="Weight (grams)" value={newMetalItem.weight} onChange={e=>setNewMetalItem(p=>({...p,weight:e.target.value}))} placeholder="10"/>}
+              <Inp label="Purchase Cost (\u20B9) — optional" value={newMetalItem.cost} onChange={e=>setNewMetalItem(p=>({...p,cost:e.target.value}))} placeholder="Optional"/>
+              <div style={S.row2}><button style={{...S.addBtn,flex:1,marginTop:0}} onClick={()=>{if(isDiamond?!newMetalItem.value:!newMetalItem.weight)return;if(editingMetalId){uMetalItems(metalItems.map(i=>i.id===editingMetalId?{...i,desc:newMetalItem.desc,weight:isDiamond?'':f(newMetalItem.weight),value:isDiamond?f(newMetalItem.value):'',cost:f(newMetalItem.cost)||''}:i));setEditingMetalId(null);}else{uMetalItems([...metalItems,{id:Date.now(),category:cat,desc:newMetalItem.desc,weight:isDiamond?'':f(newMetalItem.weight),value:isDiamond?f(newMetalItem.value):'',cost:f(newMetalItem.cost)||''}]);}setNewMetalItem({desc:'',weight:'',value:'',cost:''});setAddingMetalCat(null);}}>{editingMetalId?'Update':'Add'}</button><button style={{...S.addBtn,flex:1,marginTop:0,background:'#1A1A1A',color:'#888'}} onClick={()=>{setAddingMetalCat(null);setEditingMetalId(null);}}>Cancel</button></div>
+            </div>:<button style={{...S.addBtn,background:'#141414',color:'#6A500A',border:'1px solid #6A500A33',marginTop:'2px',fontSize:'11px',padding:'8px'}} onClick={()=>{setAddingMetalCat(cat);setEditingMetalId(null);setNewMetalItem({desc:'',weight:'',value:'',cost:''});}}>+ Add {label.split('(')[0].trim()}</button>}
+          </div>;
+        })}
+ 
+        {metalVal()>0&&<div style={{...S.cardG,textAlign:'center'}}><div style={{fontSize:'9px',color:'#6A500A',letterSpacing:'1px',marginBottom:'2px'}}>TOTAL METALS & JEWELLERY</div><div style={{fontSize:'22px',fontWeight:800,color:'#F2C94C'}}>{fmt(metalVal())}</div></div>}
+ 
+        <div style={S.card}><div style={S.ct}>Sovereign Gold Bonds</div>
+          <div style={{...S.row2,marginBottom:'8px'}}><button style={S.chip(sgb.purchaseType==='primary')} onClick={()=>uSgb({...sgb,purchaseType:'primary'})}>Primary</button><button style={S.chip(sgb.purchaseType==='secondary')} onClick={()=>uSgb({...sgb,purchaseType:'secondary'})}>Secondary</button></div>
+          <Inp label="Units (grams)" value={sgb.grams} onChange={e=>uSgb({...sgb,grams:e.target.value})}/>
+          <Inp label="Purchase price/gram (\u20B9)" value={sgb.purchasePrice} onChange={e=>uSgb({...sgb,purchasePrice:e.target.value})}/>
+          <div style={_lblS}>Purchase Date</div><input style={{..._inpS,marginBottom:'8px'}} type="date" value={sgb.purchaseDate} onChange={e=>uSgb({...sgb,purchaseDate:e.target.value})}/>
+          {sgb.grams&&sgb.purchaseDate&&<div style={{padding:'10px',background:'#141414',borderRadius:'10px'}}>
+            <Dr label="Current Value" val={fmt(sgbVal())}/>
+            <Dr label="Maturity Date (8 yrs)" val={fmtDate(sgbMatDate)}/>
+            <Dr label="Interest Earned (2.5% PA)" val={fmt(sgbInterestEarned)} color="#22C55E"/>
+            {sgb.purchasePrice&&<Dr label="Capital Gain" val={fmt(sgbVal()-f(sgb.purchasePrice)*f(sgb.grams))} color={gc(sgbVal(),f(sgb.purchasePrice)*f(sgb.grams))}/>}
+            <Dr label="Lock-in Left" val={sgbYrs>=5?'Unlocked':'~'+(5-sgbYrs).toFixed(1)+' years'} color={sgbYrs>=5?'#22C55E':'#F2C94C'}/>
+            {sgb.purchaseType==='primary'&&sgbYrs>=8&&<InfoBox color="#22C55E" bg="#050F05">Matured! Capital gains are 100% tax-free for original subscribers.</InfoBox>}
+            {sgb.purchaseType==='primary'&&sgbYrs>=5&&sgbYrs<8&&<InfoBox>Early redemption available on interest payment dates (every 6 months). LTCG @ 12.5% applies. Hold {(8-sgbYrs).toFixed(1)} more years for zero tax.</InfoBox>}
+            {sgb.purchaseType==='primary'&&sgbYrs<5&&<InfoBox>Lock-in period. No exit allowed. Interest of 2.5% PA on issue price paid every 6 months (taxable at slab rate).</InfoBox>}
+            {sgb.purchaseType==='secondary'&&<InfoBox color="#EF4444" bg="#0F0505">Secondary market purchase: LTCG @ 12.5% applies on any exit. No tax-free maturity benefit.</InfoBox>}
+          </div>}
+        </div>
+      </div>}
+ 
+      {tab==='govt'&&<div style={S.pg}>
+        <div style={S.card}><div style={S.ct}>PPF (Public Provident Fund)</div>
+          <Inp label="Current Balance (\u20B9)" value={ppf.balance} onChange={e=>uPpf({...ppf,balance:e.target.value})}/>
+          <Inp label="Monthly Contribution" value={ppf.monthlyContrib} onChange={e=>uPpf({...ppf,monthlyContrib:e.target.value})}/>
+          <div style={_lblS}>Account Start Date</div><input style={{..._inpS,marginBottom:'8px'}} type="date" value={ppf.startDate} onChange={e=>uPpf({...ppf,startDate:e.target.value})}/>
+          <Inp label="Interest Rate (% PA)" value={ppf.interestRate} onChange={e=>uPpf({...ppf,interestRate:e.target.value})} placeholder="7.1"/>
+          {ppf.balance&&ppf.startDate&&(()=>{var yrs=Math.max(0,(new Date()-new Date(ppf.startDate))/(365.25*864e5));var matDate=addYears(ppf.startDate,15);var left=daysLeft(matDate);var matured=left<=0;var proj=f(ppf.balance);if(ppf.monthlyContrib){for(var i=0;i<Math.max(0,15-yrs)*12;i++)proj=(proj+f(ppf.monthlyContrib))*(1+f(ppf.interestRate)/100/12);}return<div style={{padding:'10px',background:'#141414',borderRadius:'10px',marginTop:'4px'}}>
+            <Dr label="Account Age" val={yrs.toFixed(1)+' years'} color="#888"/>
+            <Dr label="Maturity Date (15 yrs)" val={fmtDate(matDate)}/>
+            <Dr label="Projected at Maturity" val={fmt(proj)} color="#22C55E"/>
+            {matured&&<InfoBox color="#22C55E" bg="#050F05">Matured! Entire corpus is tax-free (EEE). You can extend in 5-year blocks with or without contributions.</InfoBox>}
+            {!matured&&yrs>=7&&<InfoBox color="#22C55E" bg="#050F05">Partial withdrawal available: up to 50% of balance at end of 4th preceding year. Withdrawal is tax-free.</InfoBox>}
+            {!matured&&yrs>=3&&yrs<6&&<InfoBox>Loan facility available (years 3-6): up to 25% of balance at end of 2nd preceding year. Interest: 1% above PPF rate.</InfoBox>}
+            {!matured&&yrs<7&&<InfoBox>No withdrawal until year 7. Premature closure after 5 years only for serious illness, higher education, or NRI status change (1% interest penalty).</InfoBox>}
+            <InfoBox>EEE status: Contributions deductible under 80C (\u20B91.5L limit). Interest is tax-free. Maturity is tax-free. Max \u20B91.5L/year contribution.</InfoBox>
+          </div>;})()}
+        </div>
+ 
+        <div style={S.card}><div style={S.ct}>NPS (National Pension System)</div>
+          <Inp label="Current Balance (\u20B9)" value={nps.balance} onChange={e=>uNps({...nps,balance:e.target.value})}/>
+          <div style={S.row2}><div style={{flex:1}}><Inp label="Your Contribution/mo" value={nps.monthlyContrib} onChange={e=>uNps({...nps,monthlyContrib:e.target.value})}/></div><div style={{flex:1}}><Inp label="Employer Contrib/mo" value={nps.employerContrib} onChange={e=>uNps({...nps,employerContrib:e.target.value})}/></div></div>
+          <Inp label="Current Age" value={nps.age} onChange={e=>uNps({...nps,age:e.target.value})} placeholder="35"/>
+          {nps.balance&&nps.age&&(()=>{var yrsToRetire=Math.max(0,60-f(nps.age));var totalMonthly=f(nps.monthlyContrib)+f(nps.employerContrib);var proj=f(nps.balance);for(var i=0;i<yrsToRetire*12;i++)proj=(proj+totalMonthly)*(1+10/100/12);var lumpSum=proj*0.6;var annuity=proj*0.4;return<div style={{padding:'10px',background:'#141414',borderRadius:'10px',marginTop:'4px'}}>
+            <Dr label="Years to Retirement (60)" val={yrsToRetire+' years'} color="#888"/>
+            <Dr label="Projected Corpus at 60" val={fmt(proj)} color="#22C55E"/>
+            <Dr label="Lump Sum (60% tax-free)" val={fmt(lumpSum)} color="#22C55E"/>
+            <Dr label="Annuity (40% for pension)" val={fmt(annuity)} color="#F2C94C"/>
+            <InfoBox>At 60: withdraw up to 60% tax-free. Minimum 40% must buy annuity (monthly pension). Before 60: only 20% lump sum, 80% annuity. Extra \u20B950K deduction under 80CCD(1B) in old regime.</InfoBox>
+          </div>;})()}
+        </div>
+ 
+        <div style={S.card}><div style={S.ct}>EPF (Employee Provident Fund)</div>
+          <Inp label="Current Balance (\u20B9)" value={epf.balance} onChange={e=>uEpf({...epf,balance:e.target.value})}/>
+          <div style={S.row2}><div style={{flex:1}}><Inp label="Your Contrib/mo" value={epf.monthlyContrib} onChange={e=>uEpf({...epf,monthlyContrib:e.target.value})}/></div><div style={{flex:1}}><Inp label="Employer Contrib/mo" value={epf.employerContrib} onChange={e=>uEpf({...epf,employerContrib:e.target.value})}/></div></div>
+          <Inp label="Service Years" value={epf.serviceYears} onChange={e=>uEpf({...epf,serviceYears:e.target.value})}/>
+          <Inp label="Interest Rate (% PA)" value={epf.interestRate} onChange={e=>uEpf({...epf,interestRate:e.target.value})} placeholder="8.25"/>
+          {epf.balance&&epf.serviceYears&&(()=>{var yrs=f(epf.serviceYears);return<div style={{padding:'10px',background:'#141414',borderRadius:'10px',marginTop:'4px'}}>
+            {yrs>=5?<InfoBox color="#22C55E" bg="#050F05">5+ years of service \u2014 withdrawal is 100% tax-free.</InfoBox>:<InfoBox color="#EF4444" bg="#0F0505">Under 5 years \u2014 TDS @ 10% on withdrawal ({fmt(f(epf.balance)*0.1)}). Hold {(5-yrs).toFixed(0)} more years for tax-free.</InfoBox>}
+            <InfoBox>Partial withdrawal allowed for: housing (after 5 yrs, up to 36x monthly salary), medical (any time), marriage/education (after 7 yrs). Interest above \u20B92.5L/yr is taxable from FY 2021-22.</InfoBox>
+          </div>;})()}
+        </div>
+ 
+        {(f(ppf.balance)+f(nps.balance)+f(epf.balance))>0&&<div style={{...S.cardG,textAlign:'center'}}><div style={{fontSize:'9px',color:'#6A500A',letterSpacing:'1px',marginBottom:'2px'}}>TOTAL GOVT SCHEMES</div><div style={{fontSize:'22px',fontWeight:800,color:'#F2C94C'}}>{fmt(f(ppf.balance)+f(nps.balance)+f(epf.balance))}</div></div>}
+      </div>}
+ 
+      {tab==='markets'&&<div style={S.pg}>
+        <div style={{display:'flex',gap:'4px',marginBottom:'8px',overflowX:'auto',paddingBottom:'2px'}}>{['portfolio','funds','stocks','crypto','fds'].map(t=><button key={t} style={S.tabBtn(subTab===t)} onClick={()=>setSubTab(t)}>{t==='portfolio'?'Overview':t==='funds'?'Funds':t==='stocks'?'Stocks':t==='crypto'?'Crypto':'FDs'}</button>)}</div>
+ 
+        {subTab==='portfolio'&&<div>
+          <div style={{...S.cardG,textAlign:'center',padding:'18px 14px'}}><div style={{fontSize:'9px',color:'#6A500A',letterSpacing:'2px',textTransform:'uppercase',marginBottom:'4px'}}>Market Portfolio</div><div style={{fontSize:'30px',fontWeight:800,color:'#F2C94C'}}>{fmt(mfVal+stVal+cryptoVal+fdVal)||'\u20B90'}</div>
+            <div style={{display:'flex',justifyContent:'center',gap:'12px',marginTop:'8px',flexWrap:'wrap'}}>
+              {mfVal>0&&<div><div style={{fontSize:'9px',color:'#3A3A3A'}}>MF</div><div style={{fontSize:'12px',fontWeight:700,color:'#F2C94C'}}>{fmt(mfVal)}</div></div>}
+              {stVal>0&&<div><div style={{fontSize:'9px',color:'#3A3A3A'}}>Stocks</div><div style={{fontSize:'12px',fontWeight:700,color:'#F2C94C'}}>{fmt(stVal)}</div></div>}
+              {cryptoVal>0&&<div><div style={{fontSize:'9px',color:'#3A3A3A'}}>Crypto</div><div style={{fontSize:'12px',fontWeight:700,color:'#F2C94C'}}>{fmt(cryptoVal)}</div></div>}
+              {fdVal>0&&<div><div style={{fontSize:'9px',color:'#3A3A3A'}}>FDs</div><div style={{fontSize:'12px',fontWeight:700,color:'#F2C94C'}}>{fmt(fdVal)}</div></div>}
+            </div>
+          </div>
+        </div>}
+ 
+        {subTab==='funds'&&<div>
+          <div style={{display:'flex',justifyContent:'space-between',marginBottom:'10px'}}><div style={{fontSize:'10px',color:'#3A3A3A'}}>Live NAV</div><button style={S.refreshBtn} onClick={async()=>{var u=await Promise.all(mfHoldings.map(async h=>{var n=await fetchNAV(h.schemeCode);return n?{...h,currentNav:n.nav,navDate:n.date}:h;}));uMf(u);}}>{'\u21BB'} NAV</button></div>
+          {mfHoldings.map(h=>{var cur=h.units*(h.currentNav||0),cost=h.units*(h.avgNav||0);return<div key={h.id} style={S.holdCard}><div style={{display:'flex',justifyContent:'space-between',gap:'8px'}}><div style={{flex:1}}><div style={{fontSize:'12px',fontWeight:700,color:'#F2C94C',marginBottom:'4px'}}>{h.schemeName}</div><span style={{fontSize:'10px',color:'#3A3A3A'}}>{h.units} units</span>{h.currentNav&&<span style={{fontSize:'10px',color:'#6A500A',marginLeft:'6px'}}>NAV \u20B9{h.currentNav.toFixed(2)}</span>}</div><div style={{textAlign:'right'}}><div style={{fontSize:'14px',fontWeight:800,color:'#F2C94C'}}>{h.currentNav?fmt(cur):'\u2014'}</div>{cost>0&&h.currentNav&&<div style={{fontSize:'11px',color:gc(cur,cost)}}>{pct(cur,cost)}%</div>}</div></div>
+            {!h.schemeCode&&linkingMfId!==h.id&&<button style={{background:'#0D0B00',border:'1px solid #6A500A33',borderRadius:'6px',padding:'5px 10px',fontSize:'10px',color:'#6A500A',cursor:'pointer',width:'100%',marginTop:'6px'}} onClick={()=>{setLinkingMfId(h.id);setLinkSearch('');setLinkResults([]);}}>Link to live NAV</button>}
+            {linkingMfId===h.id&&<div style={{marginTop:'6px',padding:'8px',background:'#0D0B00',borderRadius:'8px',border:'1px solid #6A500A33'}}><input style={{..._inpS,fontSize:'12px',padding:'6px 8px'}} placeholder="Search fund..." value={linkSearch} onChange={async(e)=>{setLinkSearch(e.target.value);if(e.target.value.length>=3){try{const r=await fetch('https://api.mfapi.in/mf/search?q='+encodeURIComponent(e.target.value));const d=await r.json();setLinkResults((Array.isArray(d)?d:[]).slice(0,5));}catch{setLinkResults([]);}}else{setLinkResults([]);}}}/>{linkResults.map(r=><div key={r.schemeCode} style={{padding:'8px',borderBottom:'1px solid #1C1C1C',cursor:'pointer',fontSize:'11px',color:'#F2C94C'}} onClick={async()=>{const nav=await fetchNAV(String(r.schemeCode));uMf(mfHoldings.map(x=>x.id===h.id?{...x,schemeCode:String(r.schemeCode),schemeName:r.schemeName,currentNav:nav?nav.nav:null,navDate:nav?nav.date:null}:x));setLinkingMfId(null);setLinkResults([]);}}>{r.schemeName}</div>)}<button style={{marginTop:'4px',background:'none',border:'none',color:'#3A3A3A',fontSize:'10px',cursor:'pointer'}} onClick={()=>setLinkingMfId(null)}>cancel</button></div>}
+            {h.schemeCode&&<div style={{fontSize:'10px',color:'#22C55E',marginTop:'4px'}}>{'\u2713'} Live NAV linked</div>}
+            <ItemActions onEdit={()=>{setEditingMfId(h.id);setNewMf({schemeCode:h.schemeCode,schemeName:h.schemeName,units:String(h.units),avgNav:String(h.avgNav),type:h.type});setMfSearch(h.schemeName);setAddingMf(true);}} onRemove={()=>uMf(mfHoldings.filter(x=>x.id!==h.id))}/>
+          </div>;})}
+          {!addingMf?<div><button style={S.addBtn} onClick={()=>{setAddingMf(true);setEditingMfId(null);setNewMf({schemeCode:'',schemeName:'',units:'',avgNav:'',type:'equity'});setMfSearch('');}}>+ Add Mutual Fund</button><input ref={mfFileRef} type="file" accept=".csv,.xlsx,.xls" style={{display:'none'}} onChange={e=>{if(e.target.files[0])importMF(e.target.files[0]);e.target.value='';}}/><button style={{...S.addBtn,background:'#141414',color:'#F2C94C',border:'1px solid #6A500A'}} onClick={()=>mfFileRef.current?.click()}>{'\uD83D\uDCE4'} Import CSV</button></div>
+          :<div style={S.card}><div style={S.ct}>{editingMfId?'Edit':'Search'} Fund</div><input style={{..._inpS,marginBottom:'4px'}} placeholder="Type fund name..." value={mfSearch} onChange={e=>{setMfSearch(e.target.value);searchMFn(e.target.value);}}/>{searching&&<div style={{fontSize:'11px',color:'#3A3A3A',padding:'6px'}}>Searching...</div>}{mfResults.length>0&&!newMf.schemeCode&&<div style={{background:'#0A0A0A',borderRadius:'8px',overflow:'hidden',marginBottom:'10px',border:'1px solid #1C1C1C'}}>{mfResults.map(r=><div key={r.schemeCode} style={S.srRow} onClick={()=>{setNewMf(p=>({...p,schemeCode:String(r.schemeCode),schemeName:r.schemeName}));setMfResults([]);setMfSearch(r.schemeName);}}><div style={{color:'#F2C94C'}}>{r.schemeName}</div></div>)}</div>}{newMf.schemeCode&&<div><div style={{fontSize:'11px',color:'#22C55E',marginBottom:'8px',padding:'6px 8px',background:'#050F05',borderRadius:'6px'}}>{'\u2713'} {newMf.schemeName}</div><div style={{display:'flex',gap:'6px',marginBottom:'10px'}}>{['equity','debt','hybrid','gold'].map(t=><button key={t} style={S.chip(newMf.type===t)} onClick={()=>setNewMf(p=>({...p,type:t}))}>{t}</button>)}</div><div style={S.row2}><div style={{flex:1}}><Inp label="Units" value={newMf.units} onChange={e=>setNewMf(p=>({...p,units:e.target.value}))}/></div><div style={{flex:1}}><Inp label="Avg NAV" value={newMf.avgNav} onChange={e=>setNewMf(p=>({...p,avgNav:e.target.value}))}/></div></div><div style={S.row2}><button style={{...S.addBtn,flex:1,marginTop:0}} onClick={addMfFn}>{editingMfId?'Update':'Add'}</button><button style={{...S.addBtn,flex:1,marginTop:0,background:'#1A1A1A',color:'#888'}} onClick={()=>{setAddingMf(false);setEditingMfId(null);setNewMf({schemeCode:'',schemeName:'',units:'',avgNav:'',type:'equity'});setMfSearch('');setMfResults([]);}}>Cancel</button></div></div>}</div>}
+ 
+          <div style={{marginTop:'16px',borderTop:'1px solid #1C1C1C',paddingTop:'14px'}}><div style={S.ct}>{'\uD83D\uDD04'} Active SIPs</div>
+            {sips.map(s=><div key={s.id} style={S.holdCard}><div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}><div style={{flex:1}}><div style={{fontSize:'12px',fontWeight:700,color:'#F2C94C',marginBottom:'3px'}}>{s.name}</div><div style={{fontSize:'10px',color:'#3A3A3A'}}>{'\u20B9'}{f(s.amount).toLocaleString('en-IN')}/{s.frequency}{s.debitDate?' \u00B7 '+s.debitDate+'th':''}</div>{s.units&&<div style={{fontSize:'10px',color:'#6A500A',marginTop:'2px'}}>{s.units} units</div>}</div><div style={{textAlign:'right'}}><div style={{fontSize:'10px',padding:'3px 8px',borderRadius:'10px',background:s.status==='active'?'#052205':'#1A1A1A',color:s.status==='active'?'#22C55E':'#888',fontWeight:700}}>{s.status==='active'?'Active':'Paused'}</div><div style={{fontSize:'9px',color:'#3A3A3A',marginTop:'4px'}}>Since {fmtDate(s.startDate)}</div></div></div>
+              <div style={{display:'flex',justifyContent:'space-between',marginTop:'6px',paddingTop:'6px',borderTop:'1px solid #1C1C1C'}}><span style={{fontSize:'10px',color:'#6A500A',cursor:'pointer'}} onClick={()=>uSips(sips.map(x=>x.id===s.id?{...x,status:x.status==='active'?'paused':'active'}:x))}>{s.status==='active'?'Pause':'Resume'}</span><div><button style={S.editBtn} onClick={()=>{setEditingSipId(s.id);setNewSip({name:s.name,amount:String(s.amount),debitDate:String(s.debitDate||''),startDate:s.startDate||'',frequency:s.frequency,units:String(s.units||''),status:s.status});setAddingSip(true);}}>{'\u270F\uFE0F'}</button><button style={S.rmBtn} onClick={()=>uSips(sips.filter(x=>x.id!==s.id))}>x</button></div></div>
+            </div>)}
+            {!addingSip?<button style={{...S.addBtn,background:'#141414',color:'#F2C94C',border:'1px solid #6A500A'}} onClick={()=>{setAddingSip(true);setEditingSipId(null);setNewSip({name:'',amount:'',debitDate:'',startDate:'',frequency:'monthly',units:'',status:'active'});}}>+ Add SIP</button>
+            :<div style={S.card}><div style={S.ct}>{editingSipId?'Edit':'New'} SIP</div>
+              <Inp label="Fund/SIP Name" value={newSip.name} onChange={e=>setNewSip(p=>({...p,name:e.target.value}))} type="text" placeholder="Axis Bluechip"/>
+              <div style={S.row2}><div style={{flex:1}}><Inp label="Amount (\u20B9)" value={newSip.amount} onChange={e=>setNewSip(p=>({...p,amount:e.target.value}))}/></div><div style={{flex:1}}><Inp label="Debit Date (1-28)" value={newSip.debitDate} onChange={e=>setNewSip(p=>({...p,debitDate:e.target.value}))} placeholder="5"/></div></div>
+              <div style={S.row2}><div style={{flex:1}}><div style={_lblS}>Start Date</div><input style={{..._inpS}} type="date" value={newSip.startDate} onChange={e=>setNewSip(p=>({...p,startDate:e.target.value}))}/></div><div style={{flex:1}}><Inp label="Units Accumulated" value={newSip.units} onChange={e=>setNewSip(p=>({...p,units:e.target.value}))} placeholder="0"/></div></div>
+              <div style={S.row2}><button style={{...S.addBtn,flex:1,marginTop:0}} onClick={()=>{if(!newSip.name||!newSip.amount)return;if(editingSipId){uSips(sips.map(s=>s.id===editingSipId?{...s,...newSip,amount:f(newSip.amount)}:s));}else{uSips([...sips,{id:Date.now(),...newSip,amount:f(newSip.amount)}]);}setNewSip({name:'',amount:'',debitDate:'',startDate:'',frequency:'monthly',units:'',status:'active'});setAddingSip(false);setEditingSipId(null);}}>{editingSipId?'Update':'Save'}</button><button style={{...S.addBtn,flex:1,marginTop:0,background:'#1A1A1A',color:'#888'}} onClick={()=>{setAddingSip(false);setEditingSipId(null);}}>Cancel</button></div>
+            </div>}
+          </div>
+        </div>}
+ 
+        {subTab==='stocks'&&<div>
+          <div style={{display:'flex',justifyContent:'space-between',marginBottom:'10px'}}><div style={{fontSize:'10px',color:'#3A3A3A'}}>NSE prices</div><button style={S.refreshBtn} onClick={async()=>{setLoadingStocks(true);uStocks(await fetchSP(stocks));setLoadingStocks(false);}}>{loadingStocks?'...':'\u21BB Prices'}</button></div>
+          {stocks.map(h=>{var cur=h.qty*(h.currentPrice||0),cost=h.qty*(h.avgPrice||0);return<div key={h.id} style={S.holdCard}><div style={{display:'flex',justifyContent:'space-between'}}><div style={{flex:1}}><div style={{fontSize:'14px',fontWeight:800,color:'#F2C94C'}}>{h.symbol} {h.change!=null&&<span style={{fontSize:'10px',color:h.change>=0?'#22C55E':'#EF4444'}}>{h.change>=0?'+':''}{(h.change||0).toFixed(2)}%</span>}</div><div style={{fontSize:'10px',color:'#3A3A3A'}}>{h.qty} shares avg \u20B9{h.avgPrice}</div></div><div style={{textAlign:'right'}}><div style={{fontSize:'14px',fontWeight:800,color:'#F2C94C'}}>{h.currentPrice?fmt(cur):'\u2014'}</div>{cost>0&&h.currentPrice&&<div style={{fontSize:'11px',color:gc(cur,cost)}}>{pct(cur,cost)}%</div>}</div></div>
+            <ItemActions onEdit={()=>{setEditingStockId(h.id);setNewStock({symbol:h.symbol,name:h.name,qty:String(h.qty),avgPrice:String(h.avgPrice)});setStockSearch(h.symbol);setAddingStock(true);}} onRemove={()=>uStocks(stocks.filter(x=>x.id!==h.id))}/>
+          </div>;})}
+          {!addingStock?<div><button style={S.addBtn} onClick={()=>{setAddingStock(true);setEditingStockId(null);setNewStock({symbol:'',name:'',qty:'',avgPrice:''});setStockSearch('');}}>+ Add Stock</button><input ref={stockFileRef} type="file" accept=".csv,.xlsx,.xls" style={{display:'none'}} onChange={e=>{if(e.target.files[0])importStocks(e.target.files[0]);e.target.value='';}}/><button style={{...S.addBtn,background:'#141414',color:'#F2C94C',border:'1px solid #6A500A'}} onClick={()=>stockFileRef.current?.click()}>{'\uD83D\uDCE4'} Import CSV</button></div>
+          :<div style={S.card}><div style={S.ct}>{editingStockId?'Edit':'Add'} Stock</div>
+            <div style={{marginBottom:'8px'}}><div style={_lblS}>Search Company</div><input style={_inpS} placeholder="Type company name or symbol..." value={stockSearch} onChange={e=>{setStockSearch(e.target.value);setNewStock(p=>({...p,symbol:e.target.value.toUpperCase()}));if(e.target.value.length>=2)searchStockFn(e.target.value.toUpperCase());}}/></div>
+            {stockResults.length>0&&<div style={{background:'#0A0A0A',borderRadius:'8px',overflow:'hidden',marginBottom:'10px',border:'1px solid #1C1C1C'}}>{stockResults.map(r=><div key={r.symbol} style={S.srRow} onClick={()=>{setNewStock(p=>({...p,symbol:r.symbol,name:r.symbol}));setStockSearch(r.symbol);setStockResults([]);}}><div style={{color:'#F2C94C'}}>{r.symbol}</div><div style={{color:'#3A3A3A',fontSize:'10px'}}>{'\u20B9'}{r.price?.toLocaleString('en-IN')}</div></div>)}</div>}
+            <div style={S.row2}><div style={{flex:1}}><Inp label="Shares" value={newStock.qty} onChange={e=>setNewStock(p=>({...p,qty:e.target.value}))}/></div><div style={{flex:1}}><Inp label="Avg Price (\u20B9)" value={newStock.avgPrice} onChange={e=>setNewStock(p=>({...p,avgPrice:e.target.value}))}/></div></div>
+            <div style={S.row2}><button style={{...S.addBtn,flex:1,marginTop:0}} onClick={addStockFn}>{loadingStocks?'...':(editingStockId?'Update':'Add')}</button><button style={{...S.addBtn,flex:1,marginTop:0,background:'#1A1A1A',color:'#888'}} onClick={()=>{setAddingStock(false);setEditingStockId(null);setNewStock({symbol:'',name:'',qty:'',avgPrice:''});setStockSearch('');setStockResults([]);}}>Cancel</button></div>
+          </div>}
+        </div>}
+ 
+        {subTab==='crypto'&&<div>
+          <div style={{fontSize:'10px',color:'#3A3A3A',marginBottom:'10px'}}>Live prices via CoinGecko (INR)</div>
+          {crypto.map(c=>{var curV=f(c.qty)*(c.priceINR||0),costV=f(c.qty)*f(c.buyPrice);return<div key={c.id} style={S.holdCard}><div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}><div style={{flex:1}}><div style={{display:'flex',alignItems:'center',gap:'6px',marginBottom:'3px'}}><span style={{fontSize:'14px',fontWeight:800,color:'#F2C94C'}}>{c.symbol}</span>{c.change24h!=null&&<span style={{fontSize:'10px',padding:'2px 6px',borderRadius:'4px',background:c.change24h>=0?'#052205':'#1A0505',color:c.change24h>=0?'#22C55E':'#EF4444',fontWeight:700}}>{c.change24h>=0?'+':''}{(c.change24h||0).toFixed(1)}%</span>}</div><div style={{fontSize:'10px',color:'#3A3A3A'}}>{c.qty} {c.symbol}{c.priceINR?' \u00B7 \u20B9'+f(c.priceINR).toLocaleString('en-IN')+'/coin':''}</div></div><div style={{textAlign:'right'}}><div style={{fontSize:'14px',fontWeight:800,color:'#F2C94C'}}>{c.priceINR?fmt(curV):'\u2014'}</div>{costV>0&&c.priceINR&&<div style={{fontSize:'11px',color:gc(curV,costV)}}>{curV>=costV?'+':''}{pct(curV,costV)}%</div>}</div></div>
+            <ItemActions onEdit={()=>{setEditingCryptoId(c.id);setNewCrypto({coin:c.coin,symbol:c.symbol,qty:String(c.qty),buyPrice:String(c.buyPrice)});setAddingCrypto(true);}} onRemove={()=>uCrypto(crypto.filter(x=>x.id!==c.id))}/>
+          </div>;})}
+          {cryptoVal>0&&<div style={{padding:'10px',background:'#141414',borderRadius:'10px',marginBottom:'8px',display:'flex',justifyContent:'space-around'}}><div style={{textAlign:'center'}}><div style={{fontSize:'9px',color:'#3A3A3A'}}>INVESTED</div><div style={{fontSize:'13px',fontWeight:700,color:'#888'}}>{fmt(cryptoCost)}</div></div><div style={{textAlign:'center'}}><div style={{fontSize:'9px',color:'#3A3A3A'}}>CURRENT</div><div style={{fontSize:'13px',fontWeight:700,color:'#F2C94C'}}>{fmt(cryptoVal)}</div></div><div style={{textAlign:'center'}}><div style={{fontSize:'9px',color:'#3A3A3A'}}>P&L</div><div style={{fontSize:'13px',fontWeight:700,color:gc(cryptoVal,cryptoCost)}}>{cryptoVal>=cryptoCost?'+':''}{fmt(cryptoVal-cryptoCost)}</div></div></div>}
+          {!addingCrypto?<button style={S.addBtn} onClick={()=>{setAddingCrypto(true);setEditingCryptoId(null);setNewCrypto({coin:'bitcoin',symbol:'BTC',qty:'',buyPrice:''});}}>+ Add Crypto</button>
+          :<div style={{background:'#141414',borderRadius:'10px',padding:'12px',marginTop:'4px'}}>
+            <div style={_lblS}>Select Coin</div>
+            <div style={{display:'flex',gap:'4px',flexWrap:'wrap',marginBottom:'10px'}}>{[['bitcoin','BTC'],['ethereum','ETH'],['solana','SOL'],['ripple','XRP'],['cardano','ADA'],['dogecoin','DOGE'],['polkadot','DOT'],['avalanche-2','AVAX'],['chainlink','LINK'],['polygon','MATIC'],['litecoin','LTC'],['shiba-inu','SHIB']].map(([id,sym])=><button key={id} style={S.chip(newCrypto.coin===id)} onClick={()=>setNewCrypto(p=>({...p,coin:id,symbol:sym}))}>{sym}</button>)}</div>
+            <div style={S.row2}><div style={{flex:1}}><Inp label="Quantity" value={newCrypto.qty} onChange={e=>setNewCrypto(p=>({...p,qty:e.target.value}))} placeholder="0.05"/></div><div style={{flex:1}}><Inp label="Buy Price/coin (\u20B9)" value={newCrypto.buyPrice} onChange={e=>setNewCrypto(p=>({...p,buyPrice:e.target.value}))} placeholder="5000000"/></div></div>
+            <div style={S.row2}><button style={{...S.addBtn,flex:1,marginTop:0}} onClick={async()=>{if(!newCrypto.qty)return;if(editingCryptoId){var updated=await fetchCryptoPrices([{coin:newCrypto.coin,symbol:newCrypto.symbol,qty:f(newCrypto.qty),buyPrice:f(newCrypto.buyPrice)}]);uCrypto(crypto.map(c=>c.id===editingCryptoId?{...c,...updated[0],id:c.id}:c));}else{var c={id:Date.now(),coin:newCrypto.coin,symbol:newCrypto.symbol,qty:f(newCrypto.qty),buyPrice:f(newCrypto.buyPrice),priceINR:null,change24h:null};var up=await fetchCryptoPrices([c]);uCrypto([...crypto,up[0]]);}setNewCrypto({coin:'bitcoin',symbol:'BTC',qty:'',buyPrice:''});setAddingCrypto(false);setEditingCryptoId(null);}}>{editingCryptoId?'Update':'Add'}</button><button style={{...S.addBtn,flex:1,marginTop:0,background:'#1A1A1A',color:'#888'}} onClick={()=>{setAddingCrypto(false);setEditingCryptoId(null);}}>Cancel</button></div>
+          </div>}
+        </div>}
+ 
+        {subTab==='fds'&&<div>
+          {selectedFd?(()=>{var fd=selectedFd,td=daysBetween(fd.startDate,fd.maturityDate),held=daysHeld(fd.startDate),left=daysLeft(fd.maturityDate),ma=calcFD(fd.principal,fd.rate,td,fd.compounding),curVal=calcFD(fd.principal,fd.rate,Math.max(0,held),fd.compounding),int=ma-fd.principal,curInt=curVal-fd.principal,prog=Math.min(100,Math.max(0,(held/td)*100)),isMat=left<=0,wd=wdDate||todayStr(),dAW=daysBetween(fd.startDate,wd),eR=Math.max(0,f(fd.rate)-f(penalty)),pI=f(fd.principal)*Math.pow(1+eR/100/f(fd.compounding),f(fd.compounding)*Math.max(0,dAW)/365)-f(fd.principal),pT=f(fd.principal)+pI,lI=int-pI;return<div>
+            <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'12px'}}><button onClick={()=>setSelectedFd(null)} style={{background:'none',border:'none',color:'#F2C94C',fontSize:'18px',cursor:'pointer'}}>{'\u2190'}</button><div style={{fontSize:'16px',fontWeight:800,color:'#F2C94C'}}>{fd.bank}</div></div>
+            <div style={{...S.cardG,padding:'16px'}}>{!isMat&&<div style={{marginBottom:'12px'}}><div style={{fontSize:'9px',color:'#6A500A',letterSpacing:'1.5px',textTransform:'uppercase'}}>CURRENT VALUE (TODAY)</div><div style={{fontSize:'28px',fontWeight:800,color:'#F2C94C'}}>{fmt(curVal)}</div><div style={{fontSize:'11px',color:'#22C55E'}}>+{fmt(curInt)} earned so far</div></div>}<div><div style={{fontSize:'9px',color:'#6A500A',letterSpacing:'1.5px',textTransform:'uppercase'}}>{isMat?'MATURED':'AT MATURITY ('+fmtDate(fd.maturityDate)+')'}</div><div style={{fontSize:isMat?'28px':'18px',fontWeight:800,color:isMat?'#F2C94C':'#888'}}>{fmt(ma)}</div></div><div style={{fontSize:'10px',color:isMat?'#888':left<=30?'#EF4444':'#22C55E',marginTop:'8px'}}>{isMat?'Matured':left+' days left'}</div>{!isMat&&<div style={{height:'4px',background:'#1A1A1A',borderRadius:'2px',marginTop:'6px'}}><div style={{height:'100%',width:prog+'%',background:'#F2C94C',borderRadius:'2px'}}/></div>}</div>
+            <div style={{...S.card,border:'1px solid #F2C94C33'}}><div style={S.ct}>Early Withdrawal</div><div style={S.row2}><div style={{flex:1}}><div style={_lblS}>Date</div><input style={_inpS} type="date" value={wdDate||todayStr()} onChange={e=>setWdDate(e.target.value)}/></div><div style={{flex:1}}><Inp label="Penalty %" value={penalty} onChange={e=>setPenalty(e.target.value)}/></div></div><div style={{background:'#0A0A0A',borderRadius:'10px',padding:'10px'}}><Dr label="Eff. rate" val={eR.toFixed(2)+'%'} color="#888"/><Dr label="Interest earned" val={fmt(pI)} color="#F2C94C"/><Dr label="Interest lost" val={fmt(Math.max(0,lI))} color="#EF4444" bold/><Dr label="Total in hand" val={fmt(pT)} color="#22C55E" bold/></div></div>
+            <button style={{...S.addBtn,background:'#1A0505',color:'#EF4444'}} onClick={()=>{uFds(fds.filter(x=>x.id!==fd.id));setSelectedFd(null);}}>Remove FD</button>
+          </div>;})()
+          :addingFd?(()=>{var upd=(k,v)=>setFdForm(p=>({...p,[k]:v}));var ht=m=>{upd('tenureMonths',m);if(fdForm.startDate&&m){var d=new Date(fdForm.startDate);d.setMonth(d.getMonth()+parseInt(m));upd('maturityDate',d.toISOString().split('T')[0]);}};var hs=d=>{upd('startDate',d);if(fdForm.tenureMonths&&d){var dt=new Date(d);dt.setMonth(dt.getMonth()+parseInt(fdForm.tenureMonths));upd('maturityDate',dt.toISOString().split('T')[0]);}};return<div>
+            <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'12px'}}><button onClick={()=>{setAddingFd(false);setEditingFdId(null);}} style={{background:'none',border:'none',color:'#F2C94C',fontSize:'18px',cursor:'pointer'}}>{'\u2190'}</button><div style={{fontSize:'16px',fontWeight:800,color:'#F2C94C'}}>{editingFdId?'Edit':'New'} FD</div></div>
+            <div style={S.card}><Inp label="Bank" value={fdForm.bank} onChange={e=>upd('bank',e.target.value)} type="text" placeholder="SBI, HDFC..."/><div style={S.row2}><div style={{flex:1}}><Inp label="Principal" value={fdForm.principal} onChange={e=>upd('principal',e.target.value)}/></div><div style={{flex:1}}><Inp label="Rate %" value={fdForm.rate} onChange={e=>upd('rate',e.target.value)}/></div></div><div style={S.row2}><div style={{flex:1}}><div style={_lblS}>Start Date</div><input style={_inpS} type="date" value={fdForm.startDate} onChange={e=>hs(e.target.value)}/></div><div style={{flex:1}}><Inp label="Tenure (Months)" value={fdForm.tenureMonths} onChange={e=>ht(e.target.value)}/></div></div><div style={{marginBottom:'10px'}}><div style={_lblS}>Maturity Date</div><input style={{..._inpS,color:fdForm.maturityDate?'#F2C94C':'#3A3A3A'}} type="date" value={fdForm.maturityDate} onChange={e=>upd('maturityDate',e.target.value)}/></div><div style={{marginBottom:'10px'}}><div style={_lblS}>Compounding</div><div style={{display:'flex',gap:'6px'}}>{[['4','Qtrly'],['12','Monthly'],['1','Yearly']].map(p=><button key={p[0]} style={S.chip(fdForm.compounding===p[0])} onClick={()=>upd('compounding',p[0])}>{p[1]}</button>)}</div></div>{fdForm.principal&&fdForm.rate&&fdForm.maturityDate&&fdForm.startDate&&<div style={{padding:'10px',background:'#141414',borderRadius:'10px',marginBottom:'10px'}}><Dr label="Maturity Date" val={fmtDate(fdForm.maturityDate)}/><Dr label="Maturity Amount" val={fmt(calcFD(f(fdForm.principal),f(fdForm.rate),daysBetween(fdForm.startDate,fdForm.maturityDate),fdForm.compounding))} color="#22C55E"/></div>}<div style={S.row2}><button style={{...S.addBtn,flex:1,marginTop:0}} onClick={()=>{if(!fdForm.principal||!fdForm.rate||!fdForm.startDate||!fdForm.maturityDate||!fdForm.bank)return;if(editingFdId){uFds(fds.map(fd=>fd.id===editingFdId?{...fd,bank:fdForm.bank,principal:f(fdForm.principal),rate:f(fdForm.rate),startDate:fdForm.startDate,maturityDate:fdForm.maturityDate,compounding:fdForm.compounding}:fd));}else{uFds([...fds,{id:Date.now(),bank:fdForm.bank,principal:f(fdForm.principal),rate:f(fdForm.rate),startDate:fdForm.startDate,maturityDate:fdForm.maturityDate,compounding:fdForm.compounding}]);}setFdForm({bank:'',principal:'',rate:'',startDate:'',maturityDate:'',tenureMonths:'',compounding:'4'});setAddingFd(false);setEditingFdId(null);}}>{editingFdId?'Update':'Save'}</button><button style={{...S.addBtn,flex:1,marginTop:0,background:'#1A1A1A',color:'#888'}} onClick={()=>{setAddingFd(false);setEditingFdId(null);}}>Cancel</button></div></div>
+          </div>;})()
+          :<div>
+            {fds.length>0&&<div style={S.cardG}><div style={{display:'flex'}}>{[['Invested',fmt(fds.reduce((s,fd)=>s+fd.principal,0))],['Today',fmt(fdVal)],['At Maturity',fmt(fdMatVal)]].map((p,i)=><div key={p[0]} style={{flex:1,textAlign:'center',borderRight:i<2?'1px solid #2A2A1A':'none'}}><div style={{fontSize:'9px',color:'#6A500A',textTransform:'uppercase'}}>{p[0]}</div><div style={{fontSize:'14px',fontWeight:800,color:'#F2C94C'}}>{p[1]}</div></div>)}</div></div>}
+            {fds.map(fd=>{var td=daysBetween(fd.startDate,fd.maturityDate),left=daysLeft(fd.maturityDate),held=daysHeld(fd.startDate),mat=calcFD(fd.principal,fd.rate,td,fd.compounding),curVal=calcFD(fd.principal,fd.rate,Math.max(0,held),fd.compounding),prog=Math.min(100,Math.max(0,(held/td)*100)),isMat=left<=0;return<div key={fd.id} style={{background:'#141414',border:'1px solid #1C1C1C',borderRadius:'12px',padding:'13px',marginBottom:'8px',cursor:'pointer'}} onClick={()=>{setSelectedFd(fd);setWdDate('');setPenalty('1');}}><div style={{display:'flex',justifyContent:'space-between',marginBottom:'6px'}}><div><div style={{fontSize:'14px',fontWeight:800,color:'#F2C94C'}}>{fd.bank}</div><div style={{fontSize:'11px',color:'#3A3A3A'}}>{fd.rate}% {fmt(fd.principal)}</div></div><div style={{textAlign:'right'}}><div style={{fontSize:'14px',fontWeight:800,color:'#F2C94C'}}>{fmt(isMat?mat:curVal)}</div><div style={{fontSize:'9px',color:'#6A500A'}}>{isMat?'Matured':'Today'}</div>{!isMat&&<div style={{fontSize:'10px',color:'#22C55E'}}>Mat: {fmt(mat)}</div>}</div></div>{!isMat&&<div style={{height:'3px',background:'#1A1A1A',borderRadius:'2px'}}><div style={{height:'100%',width:prog+'%',background:'#22C55E',borderRadius:'2px',opacity:0.7}}/></div>}<div style={{display:'flex',justifyContent:'space-between',marginTop:'4px'}}><span style={{fontSize:'10px',color:'#3A3A3A'}}>{fmtDate(fd.maturityDate)}</span><span style={{fontSize:'10px',color:isMat?'#888':'#22C55E'}}>{isMat?'Matured':left+'d'}</span></div><div style={{display:'flex',justifyContent:'flex-end',marginTop:'4px'}}><button style={S.editBtn} onClick={e=>{e.stopPropagation();setEditingFdId(fd.id);setFdForm({bank:fd.bank,principal:String(fd.principal),rate:String(fd.rate),startDate:fd.startDate,maturityDate:fd.maturityDate,tenureMonths:'',compounding:fd.compounding||'4'});setAddingFd(true);}}>{'\u270F\uFE0F'}</button></div></div>;})}
+            <button style={S.addBtn} onClick={()=>{setAddingFd(true);setEditingFdId(null);setFdForm({bank:'',principal:'',rate:'',startDate:'',maturityDate:'',tenureMonths:'',compounding:'4'});}}>+ Add FD</button>
+          </div>}
+        </div>}
+      </div>}
+ 
+      {tab==='tax'&&<div style={S.pg}>
+        <div style={S.cardG}><div style={{fontSize:'10px',color:'#6A500A',textTransform:'uppercase',letterSpacing:'1.5px'}}>Regime: {taxProfile.regime==='new'?'New':'Old'} | Slab: {slabRate()}% | Income: {fmt(latestIncome)}</div></div>
+        {(mfVal>0||stVal>0)&&(()=>{var ltcg=mfHoldings.filter(h=>h.type==='equity').reduce((s,h)=>s+Math.max(0,h.units*(h.currentNav||0)-h.units*(h.avgNav||0)),0)+stocks.reduce((s,h)=>s+Math.max(0,h.qty*(h.currentPrice||0)-h.qty*(h.avgPrice||0)),0),taxable=Math.max(0,ltcg-125000),tax=taxable*0.125;return<div style={S.card}><div style={S.ct}>Equity LTCG</div><Dr label="Gains" val={fmt(ltcg)}/><Dr label="Exempt" val={'\u20B91.25L'} color="#22C55E"/><Dr label="Taxable" val={fmt(taxable)} color={taxable>0?'#EF4444':'#22C55E'}/><Dr label="Tax @12.5%" val={fmt(tax)} color={tax>0?'#EF4444':'#22C55E'}/></div>;})()}
+        {cryptoVal>0&&<div style={S.card}><div style={S.ct}>Crypto Tax</div><Dr label="Crypto Gains" val={fmt(Math.max(0,cryptoVal-cryptoCost))}/><Dr label="Tax @30% (flat)" val={fmt(Math.max(0,cryptoVal-cryptoCost)*0.3)} color="#EF4444"/><InfoBox>Crypto gains are taxed at flat 30% + 4% cess. No deductions allowed except cost of acquisition. 1% TDS on transfers above \u20B910K.</InfoBox></div>}
+        <div style={S.card}><div style={S.ct}>Tax Tips</div>{[['Harvest \u20B91.25L LTCG yearly','Sell & repurchase equity before March 31. Zero tax up to \u20B91.25L.'],['SGB: hold 8 years','Zero capital gains for original subscribers at maturity.'],['EPF 5-year rule','10% TDS if withdrawn before 5 years. Tax-free after.'],['NPS: extra \u20B950K','80CCD(1B) gives \u20B950K extra deduction in old regime.'],['PPF: EEE benefit','Contribution, interest, and maturity all tax-free.'],['File ITR on time','Capital losses expire if ITR not filed by July 31.']].map(p=><div key={p[0]} style={{marginBottom:'8px',paddingBottom:'8px',borderBottom:'1px solid #141414'}}><div style={{fontSize:'12px',fontWeight:700,color:'#F2C94C',marginBottom:'2px'}}>{p[0]}</div><div style={{fontSize:'11px',color:'#444',lineHeight:1.5}}>{p[1]}</div></div>)}</div>
+      </div>}
+ 
+      <div style={S.nav}>{TABS.map(t=><div key={t.k} style={S.ni(tab===t.k)} onClick={()=>{setTab(t.k);setSubTab('portfolio');}}><span style={{fontSize:'18px'}}>{t.i}</span><span style={S.nl(tab===t.k)}>{t.l}</span></div>)}</div>
     </div>
-
-    {importPreview&&<div style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.9)',zIndex:100,display:'flex',alignItems:'center',justifyContent:'center',padding:'16px'}}><div style={{background:'#0F0F0F',border:'1px solid #6A500A',borderRadius:'16px',padding:'18px',maxWidth:'380px',width:'100%',maxHeight:'80vh',overflow:'auto'}}><div style={{fontSize:'14px',fontWeight:800,color:'#F2C94C',marginBottom:'4px'}}>Import {importPreview.type==='stocks'?'Stocks':'MFs'}</div><div style={{fontSize:'11px',color:'#22C55E',marginBottom:'12px'}}>{importPreview.data.length} items found</div>{importPreview.data.slice(0,8).map((item,i)=><div key={i} style={{padding:'8px',background:'#141414',borderRadius:'8px',marginBottom:'4px',fontSize:'11px'}}><div style={{color:'#F2C94C',fontWeight:700}}>{importPreview.type==='stocks'?item.symbol:item.schemeName}</div></div>)}<div style={S.row2}><button style={{...S.addBtn,flex:1}} onClick={confirmImport}>Import All</button><button style={{...S.addBtn,flex:1,background:'#1A1A1A',color:'#888'}} onClick={()=>setImportPreview(null)}>Cancel</button></div></div></div>}
-
-    {tab==='home'&&<div style={S.pg}>
-      <div style={{...S.cardG,textAlign:'center',padding:'20px 14px'}}>
-        <div style={{fontSize:'9px',color:'#6A500A',letterSpacing:'2px',textTransform:'uppercase',marginBottom:'4px'}}>Net Worth</div>
-        <div style={{fontSize:'34px',fontWeight:800,color:'#F2C94C'}}>{fmt(nw)||'\u20B90'}</div>
-        {totalDebt>0&&<div style={{display:'flex',justifyContent:'center',gap:'16px',marginTop:'6px'}}>
-          <div><div style={{fontSize:'9px',color:'#3A3A3A'}}>ASSETS</div><div style={{fontSize:'13px',fontWeight:700,color:'#22C55E'}}>{fmt(totalAssets)}</div></div>
-          <div><div style={{fontSize:'9px',color:'#3A3A3A'}}>DEBT</div><div style={{fontSize:'13px',fontWeight:700,color:'#EF4444'}}>-{fmt(totalDebt)}</div></div>
-        </div>}
-        {refreshing&&<div style={{fontSize:'10px',color:'#6A500A',marginTop:'6px'}}>Refreshing...</div>}
-        <div style={{display:'flex',gap:'8px',justifyContent:'center',marginTop:'10px',flexWrap:'wrap'}}>
-          <button style={S.refreshBtn} onClick={()=>refreshAll().then(()=>{var n=totalNW();if(n>0)saveSnapshot(n);})} disabled={refreshing}>{refreshing?'...':'\u21BB Refresh'}</button>
-          <button style={S.refreshBtn} onClick={exportCSV}>{'\uD83D\uDCE5'} CSV</button>
-          <button style={S.refreshBtn} onClick={()=>setShowSettings(!showSettings)}>{'\u2699\uFE0F'}</button>
-        </div>
-      </div>
-      {showSettings&&<div style={S.card}><div style={S.ct}>Settings</div>
-        <button style={{...S.secBtn,marginBottom:'8px'}} onClick={()=>{var p=prompt('New 4-digit PIN:');if(p&&/^\d{4}$/.test(p)){sv('w_pin',p);alert('PIN updated!');}}}> Change PIN</button>
-        <button style={{...S.secBtn,marginBottom:'8px'}} onClick={()=>{sv('w_pin',null);alert('PIN removed.');}}>Remove PIN</button>
-        <button style={{...S.addBtn,background:'#1A0505',color:'#EF4444'}} onClick={()=>{if(confirm('Delete ALL data?')){localStorage.clear();location.reload();}}}>Reset All Data</button>
-      </div>}
-      <NWChart history={nwHistory}/>
-
-      {breakdown.length>0&&<div style={S.card}><div style={S.ct}>Breakdown</div>{breakdown.map(it=><div key={it.l}><div style={_ds}><span style={{fontSize:'13px',color:'#777'}}>{it.l}</span><span style={{fontSize:'13px',fontWeight:700,color:'#F2C94C'}}>{fmt(it.v)}</span></div><div style={{height:'3px',background:'#141414',borderRadius:'2px',margin:'2px 0 4px'}}><div style={{height:'100%',width:Math.min(100,(it.v/Math.max(1,totalAssets))*100)+'%',background:'#F2C94C',borderRadius:'2px',opacity:0.5}}/></div></div>)}</div>}
-
-      {/* DEBT SECTION */}
-      <div style={S.card}><div style={S.ct}>Liabilities / Debt</div>
-        {debts.map(d=>isEditing('debt',d.id)?<div key={d.id} style={{padding:'8px',background:'#0D0B00',borderRadius:'8px',marginBottom:'4px'}}>
-          <Inp label="Name" value={editId.data.name||''} onChange={e=>ed('name',e.target.value)} type="text"/><Inp label="Outstanding (\u20B9)" value={editId.data.outstanding||''} onChange={e=>ed('outstanding',e.target.value)}/><Inp label="Interest Rate %" value={editId.data.rate||''} onChange={e=>ed('rate',e.target.value)}/><Inp label="EMI (\u20B9)" value={editId.data.emi||''} onChange={e=>ed('emi',e.target.value)}/>
-          <div style={S.row2}><button style={{...S.addBtn,flex:1,marginTop:0}} onClick={()=>saveEdit('debt')}>Save</button><button style={{...S.addBtn,flex:1,marginTop:0,background:'#1A1A1A',color:'#888'}} onClick={()=>setEditId(null)}>Cancel</button></div>
-        </div>:<div key={d.id} className="item-row"><div><div style={{fontSize:'12px',color:'#EF4444',fontWeight:700}}>{d.name}</div><div style={{fontSize:'10px',color:'#3A3A3A'}}>{d.type==='home_loan'?'Home Loan':'Borrowed'} {d.rate?'@ '+d.rate+'%':''} {d.emi?'\u00B7 EMI \u20B9'+f(d.emi).toLocaleString('en-IN'):''}</div>{d.notes&&<div style={{fontSize:'10px',color:'#3A3A3A'}}>{d.notes}</div>}</div><div style={{textAlign:'right'}}><div style={{fontSize:'14px',fontWeight:800,color:'#EF4444'}}>{fmt(f(d.outstanding))}</div><Acts onEdit={()=>startEdit('debt',d.id,{...d})} onRemove={()=>uDebts(debts.filter(x=>x.id!==d.id))}/></div></div>)}
-        {totalDebt>0&&<div style={{padding:'8px',background:'#1A0505',borderRadius:'8px',marginTop:'4px'}}><Dr label="Total Debt" val={fmt(totalDebt)} color="#EF4444" bold/></div>}
-        {!addingDebt?<button style={S.secBtn} onClick={()=>setAddingDebt(true)}>+ Add Loan / Debt</button>
-        :<div style={{padding:'10px',background:'#0D0B00',borderRadius:'10px',border:'1px solid #6A500A33',marginTop:'4px'}}>
-          <div style={{display:'flex',gap:'6px',marginBottom:'10px'}}><button style={S.chip(newDebt.type==='home_loan')} onClick={()=>setNewDebt(p=>({...p,type:'home_loan'}))}>Home Loan</button><button style={S.chip(newDebt.type==='personal')} onClick={()=>setNewDebt(p=>({...p,type:'personal'}))}>Personal</button><button style={S.chip(newDebt.type==='family')} onClick={()=>setNewDebt(p=>({...p,type:'family'}))}>Family</button></div>
-          <Inp label={newDebt.type==='family'?'Borrowed from':'Bank/Lender'} value={newDebt.name} onChange={e=>setNewDebt(p=>({...p,name:e.target.value}))} type="text" placeholder={newDebt.type==='family'?'Parents':'HDFC, SBI...'}/>
-          <div style={S.row2}><div style={{flex:1}}><Inp label="Outstanding (\u20B9)" value={newDebt.outstanding} onChange={e=>setNewDebt(p=>({...p,outstanding:e.target.value}))}/></div><div style={{flex:1}}><Inp label="Interest %" value={newDebt.rate} onChange={e=>setNewDebt(p=>({...p,rate:e.target.value}))} placeholder="0"/></div></div>
-          {newDebt.type==='home_loan'&&<div style={S.row2}><div style={{flex:1}}><Inp label="EMI (\u20B9)" value={newDebt.emi} onChange={e=>setNewDebt(p=>({...p,emi:e.target.value}))}/></div><div style={{flex:1}}><Inp label="Tenure Left (months)" value={newDebt.tenureLeft} onChange={e=>setNewDebt(p=>({...p,tenureLeft:e.target.value}))}/></div></div>}
-          <Inp label="Notes" value={newDebt.notes} onChange={e=>setNewDebt(p=>({...p,notes:e.target.value}))} type="text" placeholder="Optional"/>
-          <div style={S.row2}><button style={{...S.addBtn,flex:1,marginTop:0}} onClick={()=>{if(!newDebt.outstanding||!newDebt.name)return;uDebts([...debts,{id:Date.now(),...newDebt,outstanding:f(newDebt.outstanding)}]);setNewDebt({type:'home_loan',name:'',originalAmt:'',outstanding:'',rate:'',emi:'',tenureLeft:'',startDate:'',notes:''});setAddingDebt(false);}}>Save</button><button style={{...S.addBtn,flex:1,marginTop:0,background:'#1A1A1A',color:'#888'}} onClick={()=>setAddingDebt(false)}>Cancel</button></div>
-        </div>}
-      </div>
-
-      {/* TAX PROFILE */}
-      <div style={S.card}><div style={S.ct}>Tax Profile</div>
-        <div style={{...S.row2,marginBottom:'10px'}}><button style={S.chip(taxProfile.regime==='new')} onClick={()=>uTax({...taxProfile,regime:'new'})}>New Regime</button><button style={S.chip(taxProfile.regime==='old')} onClick={()=>uTax({...taxProfile,regime:'old'})}>Old Regime</button></div>
-        {latestIncome>0&&<div style={{padding:'8px',background:'#141414',borderRadius:'8px',marginBottom:'8px'}}><Dr label="Current Income" val={fmt(latestIncome)}/><Dr label="Slab" val={slabRate()+'%'}/></div>}
-        {(taxProfile.entries||[]).slice().reverse().map(en=>isEditing('income',en.id)?<div key={en.id} style={{padding:'8px',background:'#0D0B00',borderRadius:'8px',marginBottom:'4px'}}><div style={S.row2}><div style={{flex:1}}><Sel label="Month" value={editId.data.month||''} onChange={e=>ed('month',e.target.value)} options={MONTHS}/></div><div style={{flex:1}}><Inp label="Year" value={editId.data.year||''} onChange={e=>ed('year',e.target.value)}/></div></div><Inp label="Annual Income" value={editId.data.income||''} onChange={e=>ed('income',e.target.value)}/><div style={S.row2}><button style={{...S.addBtn,flex:1,marginTop:0}} onClick={()=>saveEdit('income')}>Save</button><button style={{...S.addBtn,flex:1,marginTop:0,background:'#1A1A1A',color:'#888'}} onClick={()=>setEditId(null)}>Cancel</button></div></div>
-        :<div key={en.id} className="item-row"><div><span style={{fontSize:'12px',color:'#F2C94C',fontWeight:700}}>{fmt(en.income)}</span><span style={{fontSize:'10px',color:'#3A3A3A',marginLeft:'8px'}}>{en.month} {en.year}</span></div><Acts onEdit={()=>startEdit('income',en.id,{...en})} onRemove={()=>uTax({...taxProfile,entries:(taxProfile.entries||[]).filter(x=>x.id!==en.id)})}/></div>)}
-        {!addingIncome?<button style={S.secBtn} onClick={()=>setAddingIncome(true)}>+ Add Income Record</button>
-        :<div style={{padding:'8px',background:'#0D0B00',borderRadius:'8px',border:'1px solid #6A500A33',marginTop:'4px'}}><div style={S.row2}><div style={{flex:1}}><Sel label="Month" value={newIncome.month} onChange={e=>setNewIncome(p=>({...p,month:e.target.value}))} options={MONTHS}/></div><div style={{flex:1}}><Inp label="Year" value={newIncome.year} onChange={e=>setNewIncome(p=>({...p,year:e.target.value}))} placeholder="2025"/></div></div><Inp label="Annual Income (\u20B9)" value={newIncome.income} onChange={e=>setNewIncome(p=>({...p,income:e.target.value}))} placeholder="1500000"/><div style={S.row2}><button style={{...S.addBtn,flex:1,marginTop:0}} onClick={()=>{if(!newIncome.income||!newIncome.year)return;uTax({...taxProfile,entries:[...(taxProfile.entries||[]),{id:Date.now(),month:newIncome.month||'Apr',year:newIncome.year,income:f(newIncome.income)}]});setNewIncome({month:'',year:'',income:''});setAddingIncome(false);}}>Save</button><button style={{...S.addBtn,flex:1,marginTop:0,background:'#1A1A1A',color:'#888'}} onClick={()=>setAddingIncome(false)}>Cancel</button></div></div>}
-      </div>
-      {breakdown.length===0&&!totalDebt&&<div style={{...S.card,textAlign:'center',padding:'28px'}}><div style={{fontSize:'13px',color:'#444'}}>Add investments across tabs below.</div></div>}
-    </div>}
-
-    {tab==='metals'&&<div style={S.pg}>
-      <div style={S.cardG}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'10px'}}><div style={S.ct}>Prices (per gram)</div>{!editingPrices?<button style={S.refreshBtn} onClick={()=>{setTempPrices({gold24k:prices.gold24k,gold22k:prices.gold22k,gold18k:prices.gold18k,silver:prices.silver});setEditingPrices(true);}}>Update</button>:<button style={{padding:'7px 14px',background:'#F2C94C',color:'#080808',border:'none',borderRadius:'8px',fontSize:'11px',fontWeight:800,cursor:'pointer'}} onClick={()=>{uPrices({...tempPrices,updated:new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})+' '+new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short'})});setEditingPrices(false);}}>Save</button>}</div>
-        {editingPrices?<div>{[['gold24k','Gold 24K'],['gold22k','Gold 22K'],['gold18k','Gold 18K'],['silver','Silver']].map(p=><Inp key={p[0]} label={p[1]+' (\u20B9/g)'} value={tempPrices[p[0]]||''} onChange={e=>setTempPrices(prev=>({...prev,[p[0]]:parseFloat(e.target.value)||0}))}/>)}</div>
-        :<div>{[['Gold 24K',prices.gold24k],['Gold 22K',prices.gold22k],['Gold 18K',prices.gold18k],['Silver',prices.silver]].map(p=><Dr key={p[0]} label={p[0]} val={'\u20B9'+(p[1]||0).toLocaleString('en-IN')+'/g'}/>)}{prices.updated&&<div style={{fontSize:'9px',color:'#2A2A2A',marginTop:'6px'}}>Updated {prices.updated}</div>}</div>}
-      </div>
-
-      {[['gold24k','Gold 24K (Coins/Bars)'],['gold22k','Gold 22K (Coins/Bars)'],['gold18k','Gold 18K'],['goldJewellery','Gold Jewellery (22K)'],['silver','Silver (Coins/Bars)'],['silverArticles','Silver Articles/Utensils'],['diamond','Diamond Jewellery']].map(([cat,label])=>{
-        var items=metalItems.filter(i=>i.category===cat);var isDiamond=cat==='diamond';var total=catTotal(cat);var weight=catWeight(cat);var cost=catCost(cat);
-        return<div key={cat} style={S.card}>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'6px'}}><div style={S.ct}>{label}</div>{total>0&&<span style={{fontSize:'13px',fontWeight:700,color:'#F2C94C'}}>{fmt(total)}</span>}</div>
-          {!isDiamond&&weight>0&&<div style={{fontSize:'10px',color:'#6A500A',marginBottom:'8px'}}>Total: {weight.toFixed(1)}g {cost>0?' \u00B7 Paid: '+fmt(cost)+' \u00B7 Gain: '+fmt(total-cost):''}</div>}
-          {items.map(item=>isEditing('metal',item.id)?<div key={item.id} style={{padding:'8px',background:'#0D0B00',borderRadius:'8px',marginBottom:'4px'}}><Inp label="Description" value={editId.data.desc||''} onChange={e=>ed('desc',e.target.value)} type="text"/>{isDiamond?<Inp label="Value (\u20B9)" value={editId.data.value||''} onChange={e=>ed('value',e.target.value)}/>:<div><Inp label="Weight (g)" value={editId.data.weight||''} onChange={e=>ed('weight',e.target.value)}/><Inp label="Purchase Cost (\u20B9, optional)" value={editId.data.purchasePrice||''} onChange={e=>ed('purchasePrice',e.target.value)}/></div>}<div style={S.row2}><button style={{...S.addBtn,flex:1,marginTop:0}} onClick={()=>saveEdit('metal')}>Save</button><button style={{...S.addBtn,flex:1,marginTop:0,background:'#1A1A1A',color:'#888'}} onClick={()=>setEditId(null)}>Cancel</button></div></div>
-          :<div key={item.id} className="item-row"><div><div style={{fontSize:'12px',color:'#F2C94C',fontWeight:600}}>{item.desc||cat}</div><div style={{fontSize:'10px',color:'#3A3A3A'}}>{isDiamond?'\u20B9'+f(item.value).toLocaleString('en-IN'):item.weight+'g \u00B7 '+fmt(f(item.weight)*(catRate(cat)||0))}{item.purchasePrice?' \u00B7 Paid: '+fmt(f(item.purchasePrice)):''}{item.purchasePrice&&!isDiamond?' \u00B7 '+(f(item.weight)*(catRate(cat)||0)>=f(item.purchasePrice)?'+':'')+fmt(f(item.weight)*(catRate(cat)||0)-f(item.purchasePrice)):''}</div></div><Acts onEdit={()=>startEdit('metal',item.id,{...item})} onRemove={()=>uMI(metalItems.filter(x=>x.id!==item.id))}/></div>)}
-          {addingMetalCat===cat?<div style={{padding:'8px',background:'#0D0B00',borderRadius:'8px',border:'1px solid #6A500A33',marginTop:'4px'}}><Inp label="Description" value={newMI.desc} onChange={e=>setNewMI(p=>({...p,desc:e.target.value}))} type="text" placeholder={isDiamond?'Ring, Pendant...':'Coin, Chain, Bangle...'}/>{isDiamond?<Inp label="Estimated Value (\u20B9)" value={newMI.value} onChange={e=>setNewMI(p=>({...p,value:e.target.value}))}/>:<div><Inp label="Weight (grams)" value={newMI.weight} onChange={e=>setNewMI(p=>({...p,weight:e.target.value}))}/><Inp label="Purchase Cost (\u20B9, optional)" value={newMI.purchasePrice} onChange={e=>setNewMI(p=>({...p,purchasePrice:e.target.value}))} placeholder="Optional"/></div>}<div style={S.row2}><button style={{...S.addBtn,flex:1,marginTop:0}} onClick={()=>{if(isDiamond?!newMI.value:!newMI.weight)return;uMI([...metalItems,{id:Date.now(),category:cat,desc:newMI.desc,weight:isDiamond?'':f(newMI.weight),value:isDiamond?f(newMI.value):'',purchasePrice:f(newMI.purchasePrice)||''}]);setNewMI({desc:'',weight:'',value:'',purchasePrice:''});setAddingMetalCat(null);}}>Add</button><button style={{...S.addBtn,flex:1,marginTop:0,background:'#1A1A1A',color:'#888'}} onClick={()=>setAddingMetalCat(null)}>Cancel</button></div></div>
-          :<button style={S.secBtn} onClick={()=>{setAddingMetalCat(cat);setNewMI({desc:'',weight:'',value:'',purchasePrice:''});}}>+ Add {label.split('(')[0].trim()}</button>}
-        </div>;
-      })}
-
-      {metalVal()>0&&<div style={{...S.cardG,textAlign:'center'}}><div style={{fontSize:'9px',color:'#6A500A',letterSpacing:'1px',marginBottom:'2px'}}>TOTAL METALS & JEWELLERY</div><div style={{fontSize:'22px',fontWeight:800,color:'#F2C94C'}}>{fmt(metalVal())}</div></div>}
-
-      {/* SGB */}
-      <div style={S.card}><div style={S.ct}>Sovereign Gold Bonds</div>
-        <div style={{...S.row2,marginBottom:'8px'}}><button style={S.chip(sgb.purchaseType==='primary')} onClick={()=>uSgb({...sgb,purchaseType:'primary'})}>Primary</button><button style={S.chip(sgb.purchaseType==='secondary')} onClick={()=>uSgb({...sgb,purchaseType:'secondary'})}>Secondary</button></div>
-        <Inp label="Units (grams)" value={sgb.grams} onChange={e=>uSgb({...sgb,grams:e.target.value})}/>
-        <Inp label="Issue price/gram (\u20B9)" value={sgb.purchasePrice} onChange={e=>uSgb({...sgb,purchasePrice:e.target.value})}/>
-        <div style={_ls}>Purchase Date</div><input style={{..._is,marginBottom:'8px'}} type="date" value={sgb.purchaseDate} onChange={e=>uSgb({...sgb,purchaseDate:e.target.value})}/>
-        {sgb.grams&&sgb.purchaseDate&&sgb.purchasePrice&&(()=>{
-          var yrs=(new Date()-new Date(sgb.purchaseDate))/(365.25*864e5);var matDate=addYears(sgb.purchaseDate,8);var lockEnd=addYears(sgb.purchaseDate,5);var locked5=yrs<5;var intEarned=sgbInterestEarned();var gain=sgbVal()-f(sgb.purchasePrice)*f(sgb.grams);
-          return<div style={{marginTop:'4px'}}>
-            <div style={{padding:'10px',background:'#141414',borderRadius:'10px',marginBottom:'6px'}}>
-              <Dr label="Current Value" val={fmt(sgbVal())}/>
-              <Dr label="Capital Gain" val={fmt(gain)} color={gain>=0?'#22C55E':'#EF4444'}/>
-              <Dr label="Interest Earned (2.5% PA)" val={fmt(intEarned)} color="#22C55E"/>
-              <Dr label="Total Return" val={fmt(gain+intEarned)} color="#22C55E" bold/>
-              <Dr label="Maturity Date" val={fmtDate(matDate)} color="#888"/>
-              <Dr label="Held" val={yrs.toFixed(1)+' years'} color="#888"/>
-            </div>
-            <Rule icon={locked5?'\uD83D\uDD12':'\u2705'} title={locked5?'Lock-in: '+Math.ceil((5-yrs)*12)+' months left':'Early exit available'} desc={locked5?'No exit before 5 years from issue date ('+fmtDate(lockEnd)+')':'Redeemable on interest payment dates (semi-annual). Next window check with RBI.'}/>
-            {sgb.purchaseType==='primary'?<Rule icon={yrs>=8?'\u2705':'\u23F3'} title={yrs>=8?'ZERO capital gains tax':'Hold '+(8-yrs).toFixed(1)+' more years for zero tax'} desc={yrs>=8?'Original subscriber held to maturity \u2014 no tax on capital gains.':'At maturity (8 yrs), capital gains are completely tax-free for original subscribers. Early exit: LTCG @ 12.5%.'}/>
-            :<Rule icon="\u274C" title="Secondary market: LTCG 12.5% always" desc="No tax exemption for secondary market purchases. LTCG @ 12.5% on capital gains regardless of holding period."/>}
-            <Rule icon="\uD83D\uDCB0" title="Interest: 2.5% PA taxed at slab rate" desc={'Semi-annual interest on issue price (\u20B9'+f(sgb.purchasePrice).toLocaleString('en-IN')+'/g). Approx \u20B9'+(f(sgb.grams)*f(sgb.purchasePrice)*0.025/2).toFixed(0)+' every 6 months. Taxable at your slab rate ('+slabRate()+'%).'}/>
-          </div>;
-        })()}
-      </div>
-    </div>}
-
-    {tab==='govt'&&<div style={S.pg}>
-      {/* PPF */}
-      <div style={S.card}><div style={S.ct}>{'\uD83D\uDCB0'} Public Provident Fund (PPF)</div>
-        <Inp label="Current Balance (\u20B9)" value={ppf.balance} onChange={e=>uPpf({...ppf,balance:e.target.value})}/>
-        <div style={_ls}>Start Date</div><input style={{..._is,marginBottom:'8px'}} type="date" value={ppf.startDate||''} onChange={e=>uPpf({...ppf,startDate:e.target.value})}/>
-        <Inp label="Monthly Contribution (\u20B9)" value={ppf.monthlyContrib} onChange={e=>uPpf({...ppf,monthlyContrib:e.target.value})} placeholder="12500"/>
-        <Inp label="Interest Rate (%)" value={ppf.interestRate} onChange={e=>uPpf({...ppf,interestRate:e.target.value})} placeholder="7.1"/>
-        {ppf.balance&&ppf.startDate&&(()=>{
-          var yrs=Math.max(0,(new Date()-new Date(ppf.startDate))/(365.25*864e5));var matDate=addYears(ppf.startDate,15);var left=Math.max(0,15-yrs);
-          var projBal=f(ppf.balance);if(ppf.monthlyContrib){for(var i=0;i<Math.ceil(left);i++)projBal=(projBal+f(ppf.monthlyContrib)*12)*((100+f(ppf.interestRate))/100);}
-          return<div style={{marginTop:'4px'}}>
-            <div style={{padding:'10px',background:'#141414',borderRadius:'10px',marginBottom:'6px'}}>
-              <Dr label="Account Age" val={yrs.toFixed(1)+' years'} color="#888"/>
-              <Dr label="Maturity Date" val={fmtDate(matDate)}/>
-              <Dr label="Years Remaining" val={left.toFixed(1)+' years'} color={left<=0?'#22C55E':'#888'}/>
-              {ppf.monthlyContrib&&<Dr label="Projected at Maturity" val={fmt(projBal)} color="#22C55E"/>}
-            </div>
-            <Rule icon={yrs>=15?'\u2705':'\u23F3'} title={yrs>=15?'Matured! Extend or withdraw':'Matures in '+left.toFixed(0)+' years'} desc={yrs>=15?'Full withdrawal tax-free (EEE). Can extend in 5-year blocks with/without fresh contributions.':'15-year lock-in. Maturity amount is 100% tax-free.'}/>
-            <Rule icon={yrs>=7?'\u2705':'\uD83D\uDD12'} title={yrs>=7?'Partial withdrawal available':'Partial withdrawal from Year 7'} desc={yrs>=7?'Can withdraw up to 50% of balance at end of 4th preceding year. One withdrawal per year.':'Available from 7th financial year. Up to 50% of balance at end of Year 4.'}/>
-            <Rule icon="\uD83D\uDCB0" title="Interest: '+ppf.interestRate+'% PA compounded annually" desc="Interest calculated on minimum balance between 5th and last day of month. Deposit before 5th for maximum interest."/>
-            <Rule icon="\u2728" title="EEE Tax Status" desc="Exempt at deposit (80C up to \u20B91.5L), exempt on interest, exempt at maturity. Max \u20B91.5L/year deposit."/>
-          </div>;
-        })()}
-      </div>
-
-      {/* NPS */}
-      <div style={S.card}><div style={S.ct}>{'\uD83C\uDFDB\uFE0F'} National Pension System (NPS)</div>
-        <Inp label="Current Balance (\u20B9)" value={nps.balance} onChange={e=>uNps({...nps,balance:e.target.value})}/>
-        <Inp label="Monthly Contribution (\u20B9)" value={nps.monthlyContrib} onChange={e=>uNps({...nps,monthlyContrib:e.target.value})}/>
-        <div style={S.row2}><div style={{flex:1}}><Inp label="Your Age" value={nps.age} onChange={e=>uNps({...nps,age:e.target.value})} placeholder="35"/></div><div style={{flex:1}}><Inp label="Retire at Age" value={nps.retireAge} onChange={e=>uNps({...nps,retireAge:e.target.value})} placeholder="60"/></div></div>
-        {nps.balance&&nps.age&&(()=>{
-          var yrsLeft=Math.max(0,f(nps.retireAge)-f(nps.age));var corpus=f(nps.balance);if(nps.monthlyContrib){for(var i=0;i<yrsLeft;i++)corpus=(corpus+f(nps.monthlyContrib)*12)*1.10;}
-          var lumpSum=corpus*0.6;var annuity=corpus*0.4;
-          return<div style={{marginTop:'4px'}}>
-            <div style={{padding:'10px',background:'#141414',borderRadius:'10px',marginBottom:'6px'}}>
-              <Dr label="Years to Retirement" val={yrsLeft.toFixed(0)+' years'} color="#888"/>
-              {nps.monthlyContrib&&<Dr label="Projected Corpus at "+nps.retireAge val={fmt(corpus)} color="#22C55E"/>}
-              {nps.monthlyContrib&&<Dr label="60% Lump Sum (tax-free)" val={fmt(lumpSum)} color="#22C55E"/>}
-              {nps.monthlyContrib&&<Dr label="40% Annuity (pension)" val={fmt(annuity)} color="#888"/>}
-            </div>
-            <Rule icon="\u2705" title="At 60: 60% lump sum tax-free" desc="Withdraw up to 60% of corpus as lump sum \u2014 completely tax-free. Remaining 40% must buy an annuity for monthly pension."/>
-            <Rule icon="\u26A0\uFE0F" title="Before 60: only 20% lump sum" desc="Premature exit: only 20% lump sum allowed. 80% must go to annuity. Allowed after 10 years of contribution."/>
-            <Rule icon="\uD83D\uDCB0" title="Tax: Extra \u20B950K deduction (Old Regime)" desc="80CCD(1B) gives \u20B950K deduction over the \u20B91.5L 80C limit. Only available in old tax regime."/>
-          </div>;
-        })()}
-      </div>
-
-      {/* EPF */}
-      <div style={S.card}><div style={S.ct}>{'\uD83D\uDC54'} Employee Provident Fund (EPF)</div>
-        <Inp label="Current Balance (\u20B9)" value={epf.balance} onChange={e=>uEpf({...epf,balance:e.target.value})}/>
-        <div style={S.row2}><div style={{flex:1}}><Inp label="Your Monthly (\u20B9)" value={epf.monthlyContrib} onChange={e=>uEpf({...epf,monthlyContrib:e.target.value})}/></div><div style={{flex:1}}><Inp label="Employer Monthly (\u20B9)" value={epf.employerContrib} onChange={e=>uEpf({...epf,employerContrib:e.target.value})}/></div></div>
-        <div style={S.row2}><div style={{flex:1}}><Inp label="Service Years" value={epf.serviceYears} onChange={e=>uEpf({...epf,serviceYears:e.target.value})}/></div><div style={{flex:1}}><Inp label="Interest %" value={epf.interestRate} onChange={e=>uEpf({...epf,interestRate:e.target.value})} placeholder="8.25"/></div></div>
-        {epf.balance&&epf.serviceYears&&(()=>{
-          var yrs=f(epf.serviceYears);var monthly=f(epf.monthlyContrib)+f(epf.employerContrib);
-          return<div style={{marginTop:'4px'}}>
-            <Rule icon={yrs>=5?'\u2705':'\uD83D\uDD12'} title={yrs>=5?'5+ years \u2014 tax-free withdrawal':''+Math.ceil(5-yrs)+' year(s) to tax-free'} desc={yrs>=5?'Withdrawal is 100% tax-free after 5 years of continuous service.':'Under 5 years: TDS @ 10% on withdrawal ('+fmt(f(epf.balance)*0.1)+'). Taxable at slab rate.'}/>
-            <Rule icon="\uD83C\uDFE0" title="Partial Withdrawal Rules" desc="Housing: up to 90% after 5 yrs. Medical: up to 100% anytime. Education/Marriage: up to 50% after 7 yrs. Each has specific conditions."/>
-            <Rule icon="\uD83D\uDCB0" title={'Interest: '+epf.interestRate+'% PA'} desc={'Current rate '+epf.interestRate+'%. Compounded annually. Interest above \u20B92.5L/year is taxable (for high earners).'}/>
-            {monthly>0&&<Rule icon="\uD83D\uDCC8" title="Monthly inflow" desc={'\u20B9'+monthly.toLocaleString('en-IN')+'/month (You: \u20B9'+f(epf.monthlyContrib).toLocaleString('en-IN')+' + Employer: \u20B9'+f(epf.employerContrib).toLocaleString('en-IN')+')'}/>}
-          </div>;
-        })()}
-      </div>
-
-      {govtVal>0&&<div style={{...S.cardG,textAlign:'center'}}><div style={{fontSize:'9px',color:'#6A500A',letterSpacing:'1px',marginBottom:'2px'}}>TOTAL GOVT SCHEMES</div><div style={{fontSize:'22px',fontWeight:800,color:'#F2C94C'}}>{fmt(govtVal)}</div></div>}
-    </div>}
-
-    {tab==='markets'&&<div style={S.pg}>
-      <div style={{display:'flex',gap:'4px',marginBottom:'8px',overflowX:'auto',paddingBottom:'2px'}}>{['portfolio','funds','stocks','crypto','fds'].map(t=><button key={t} style={S.tabBtn(subTab===t)} onClick={()=>setSubTab(t)}>{t==='portfolio'?'Overview':t==='funds'?'Funds':t==='stocks'?'Stocks':t==='crypto'?'Crypto':'FDs'}</button>)}</div>
-
-      {subTab==='portfolio'&&<div>
-        <div style={{...S.cardG,textAlign:'center',padding:'18px 14px'}}><div style={{fontSize:'9px',color:'#6A500A',letterSpacing:'2px',textTransform:'uppercase',marginBottom:'4px'}}>Market Portfolio</div><div style={{fontSize:'30px',fontWeight:800,color:'#F2C94C'}}>{fmt(mfVal+stVal+cryptoVal+fdVal)||'\u20B90'}</div>
-        <div style={{display:'flex',justifyContent:'center',gap:'12px',marginTop:'8px',flexWrap:'wrap'}}>
-          {mfVal>0&&<div style={{textAlign:'center'}}><div style={{fontSize:'9px',color:'#3A3A3A'}}>MF</div><div style={{fontSize:'12px',fontWeight:700,color:'#F2C94C'}}>{fmt(mfVal)}</div></div>}
-          {stVal>0&&<div style={{textAlign:'center'}}><div style={{fontSize:'9px',color:'#3A3A3A'}}>Stocks</div><div style={{fontSize:'12px',fontWeight:700,color:'#F2C94C'}}>{fmt(stVal)}</div></div>}
-          {cryptoVal>0&&<div style={{textAlign:'center'}}><div style={{fontSize:'9px',color:'#3A3A3A'}}>Crypto</div><div style={{fontSize:'12px',fontWeight:700,color:'#F2C94C'}}>{fmt(cryptoVal)}</div></div>}
-          {fdVal>0&&<div style={{textAlign:'center'}}><div style={{fontSize:'9px',color:'#3A3A3A'}}>FDs</div><div style={{fontSize:'12px',fontWeight:700,color:'#F2C94C'}}>{fmt(fdVal)}</div></div>}
-        </div></div>
-      </div>}
-
-      {/* ── FUNDS & SIPs ── */}
-      {subTab==='funds'&&<div>
-        <div style={{display:'flex',justifyContent:'space-between',marginBottom:'10px'}}><div style={{fontSize:'10px',color:'#3A3A3A'}}>Live NAV</div><button style={S.refreshBtn} onClick={async()=>{var u=await Promise.all(mfHoldings.map(async h=>{if(!h.schemeCode)return h;var n=await fetchNAV(h.schemeCode);return n?{...h,currentNav:n.nav,navDate:n.date}:h;}));uMf(u);}}>{'\u21BB'} NAV</button></div>
-        {mfHoldings.map(h=>{var cur=h.units*(h.currentNav||0),cost=h.units*(h.avgNav||0);
-          return isEditing('mf',h.id)?<div key={h.id} style={{padding:'10px',background:'#0D0B00',borderRadius:'10px',marginBottom:'8px'}}><Inp label="Units" value={editId.data.units||''} onChange={e=>ed('units',f(e.target.value))}/><Inp label="Avg NAV" value={editId.data.avgNav||''} onChange={e=>ed('avgNav',f(e.target.value))}/><div style={S.row2}><button style={{...S.addBtn,flex:1,marginTop:0}} onClick={()=>saveEdit('mf')}>Save</button><button style={{...S.addBtn,flex:1,marginTop:0,background:'#1A1A1A',color:'#888'}} onClick={()=>setEditId(null)}>Cancel</button></div></div>
-          :<div key={h.id} style={S.holdCard}><div style={{display:'flex',justifyContent:'space-between',gap:'8px'}}><div style={{flex:1}}><div style={{fontSize:'12px',fontWeight:700,color:'#F2C94C',marginBottom:'4px'}}>{h.schemeName}</div><span style={{fontSize:'10px',color:'#3A3A3A'}}>{h.units} units</span>{h.currentNav&&<span style={{fontSize:'10px',color:'#6A500A',marginLeft:'6px'}}>NAV \u20B9{h.currentNav.toFixed(2)}</span>}</div><div style={{textAlign:'right'}}><div style={{fontSize:'14px',fontWeight:800,color:'#F2C94C'}}>{h.currentNav?fmt(cur):'\u2014'}</div>{cost>0&&h.currentNav&&<div style={{fontSize:'11px',color:gc(cur,cost)}}>{pct(cur,cost)}%</div>}</div></div>
-          {!h.schemeCode&&linkingMfId!==h.id&&<button style={S.secBtn} onClick={()=>{setLinkingMfId(h.id);setLinkSearch('');setLinkResults([]);}}>Link to live NAV</button>}
-          {linkingMfId===h.id&&<div style={{marginTop:'6px',padding:'8px',background:'#0D0B00',borderRadius:'8px'}}><input style={_is} placeholder="Search fund..." value={linkSearch} onChange={async(e)=>{setLinkSearch(e.target.value);if(e.target.value.length>=3){try{const r=await fetch('https://api.mfapi.in/mf/search?q='+encodeURIComponent(e.target.value));const d=await r.json();setLinkResults((Array.isArray(d)?d:[]).slice(0,5));}catch{setLinkResults([]);}}else setLinkResults([]);}}/>{linkResults.map(r=><div key={r.schemeCode} style={S.srRow} onClick={async()=>{const nav=await fetchNAV(String(r.schemeCode));uMf(mfHoldings.map(x=>x.id===h.id?{...x,schemeCode:String(r.schemeCode),schemeName:r.schemeName,currentNav:nav?nav.nav:null,navDate:nav?nav.date:null}:x));setLinkingMfId(null);setLinkResults([]);}}>{r.schemeName}</div>)}<button style={{marginTop:'4px',background:'none',border:'none',color:'#3A3A3A',fontSize:'10px',cursor:'pointer'}} onClick={()=>setLinkingMfId(null)}>cancel</button></div>}
-          {h.schemeCode&&<div style={{fontSize:'10px',color:'#22C55E',marginTop:'4px'}}>{'\u2713'} Live NAV linked</div>}
-          <div style={{display:'flex',justifyContent:'flex-end',marginTop:'4px'}}><Acts onEdit={()=>startEdit('mf',h.id,{units:h.units,avgNav:h.avgNav})} onRemove={()=>uMf(mfHoldings.filter(x=>x.id!==h.id))}/></div>
-        </div>;})}
-        {!addingMf?<div><button style={S.addBtn} onClick={()=>setAddingMf(true)}>+ Add Mutual Fund</button><input ref={mfFileRef} type="file" accept=".csv,.xlsx,.xls" style={{display:'none'}} onChange={e=>{if(e.target.files[0])importMF(e.target.files[0]);e.target.value='';}}/><button style={S.secBtn} onClick={()=>mfFileRef.current?.click()}>{'\uD83D\uDCE4'} Import from Zerodha/CSV</button></div>
-        :<div style={S.card}><div style={S.ct}>Search Fund</div><input style={{..._is,marginBottom:'4px'}} placeholder="Type fund name..." value={mfSearch} onChange={e=>{setMfSearch(e.target.value);searchMFn(e.target.value);}}/>{searching&&<div style={{fontSize:'11px',color:'#3A3A3A',padding:'6px'}}>Searching...</div>}{mfResults.length>0&&!newMf.schemeCode&&<div style={{background:'#0A0A0A',borderRadius:'8px',overflow:'hidden',marginBottom:'10px',border:'1px solid #1C1C1C'}}>{mfResults.map(r=><div key={r.schemeCode} style={S.srRow} onClick={()=>{setNewMf(p=>({...p,schemeCode:String(r.schemeCode),schemeName:r.schemeName}));setMfResults([]);setMfSearch(r.schemeName);}}><div style={{color:'#F2C94C'}}>{r.schemeName}</div></div>)}</div>}{newMf.schemeCode&&<div><div style={{fontSize:'11px',color:'#22C55E',marginBottom:'8px',padding:'6px 8px',background:'#050F05',borderRadius:'6px'}}>{'\u2713'} {newMf.schemeName}</div><div style={{display:'flex',gap:'6px',marginBottom:'10px'}}>{['equity','debt','hybrid','gold'].map(t=><button key={t} style={S.chip(newMf.type===t)} onClick={()=>setNewMf(p=>({...p,type:t}))}>{t}</button>)}</div><div style={S.row2}><div style={{flex:1}}><Inp label="Units" value={newMf.units} onChange={e=>setNewMf(p=>({...p,units:e.target.value}))}/></div><div style={{flex:1}}><Inp label="Avg NAV" value={newMf.avgNav} onChange={e=>setNewMf(p=>({...p,avgNav:e.target.value}))}/></div></div><div style={S.row2}><button style={{...S.addBtn,flex:1,marginTop:0}} onClick={addMfFn}>Add</button><button style={{...S.addBtn,flex:1,marginTop:0,background:'#1A1A1A',color:'#888'}} onClick={()=>{setAddingMf(false);setNewMf({schemeCode:'',schemeName:'',units:'',avgNav:'',type:'equity'});setMfSearch('');setMfResults([]);}}>Cancel</button></div></div>}</div>}
-
-        {/* SIPs */}
-        <div style={{marginTop:'16px',borderTop:'1px solid #1C1C1C',paddingTop:'14px'}}><div style={S.ct}>{'\uD83D\uDD04'} Active SIPs</div>
-        {sips.map(s=>isEditing('sip',s.id)?<div key={s.id} style={{padding:'10px',background:'#0D0B00',borderRadius:'10px',marginBottom:'8px'}}><Inp label="Name" value={editId.data.name||''} onChange={e=>ed('name',e.target.value)} type="text"/><div style={S.row2}><div style={{flex:1}}><Inp label="Amount" value={editId.data.amount||''} onChange={e=>ed('amount',e.target.value)}/></div><div style={{flex:1}}><Inp label="Debit Date" value={editId.data.debitDate||''} onChange={e=>ed('debitDate',e.target.value)}/></div></div><Inp label="Units" value={editId.data.units||''} onChange={e=>ed('units',e.target.value)}/><div style={S.row2}><button style={{...S.addBtn,flex:1,marginTop:0}} onClick={()=>saveEdit('sip')}>Save</button><button style={{...S.addBtn,flex:1,marginTop:0,background:'#1A1A1A',color:'#888'}} onClick={()=>setEditId(null)}>Cancel</button></div></div>
-        :<div key={s.id} style={S.holdCard}><div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}><div style={{flex:1}}><div style={{fontSize:'12px',fontWeight:700,color:'#F2C94C',marginBottom:'3px'}}>{s.name}</div><div style={{fontSize:'10px',color:'#3A3A3A'}}>{'\u20B9'}{f(s.amount).toLocaleString('en-IN')}/{s.frequency} {s.debitDate?'\u00B7 '+s.debitDate+'th':''}</div>{s.units&&<div style={{fontSize:'10px',color:'#6A500A',marginTop:'2px'}}>{s.units} units</div>}</div><div style={{textAlign:'right'}}><div style={{fontSize:'10px',padding:'3px 8px',borderRadius:'10px',background:s.status==='active'?'#052205':'#1A1A1A',color:s.status==='active'?'#22C55E':'#888',fontWeight:700}}>{s.status==='active'?'Active':'Paused'}</div></div></div>
-          <div style={{display:'flex',justifyContent:'space-between',marginTop:'6px',paddingTop:'6px',borderTop:'1px solid #1C1C1C'}}><span style={{fontSize:'10px',color:'#6A500A',cursor:'pointer'}} onClick={()=>uSips(sips.map(x=>x.id===s.id?{...x,status:x.status==='active'?'paused':'active'}:x))}>{s.status==='active'?'Pause':'Resume'}</span><Acts onEdit={()=>startEdit('sip',s.id,{...s})} onRemove={()=>uSips(sips.filter(x=>x.id!==s.id))}/></div>
-        </div>)}
-        {!addingSip?<button style={S.secBtn} onClick={()=>setAddingSip(true)}>+ Add SIP</button>
-        :<div style={S.card}><div style={S.ct}>New SIP</div><Inp label="Fund Name" value={newSip.name} onChange={e=>setNewSip(p=>({...p,name:e.target.value}))} type="text" placeholder="Axis Bluechip"/><div style={S.row2}><div style={{flex:1}}><Inp label="Amount (\u20B9)" value={newSip.amount} onChange={e=>setNewSip(p=>({...p,amount:e.target.value}))}/></div><div style={{flex:1}}><Inp label="Debit Date" value={newSip.debitDate} onChange={e=>setNewSip(p=>({...p,debitDate:e.target.value}))} placeholder="5"/></div></div><div style={S.row2}><div style={{flex:1}}><div style={_ls}>Start Date</div><input style={_is} type="date" value={newSip.startDate} onChange={e=>setNewSip(p=>({...p,startDate:e.target.value}))}/></div><div style={{flex:1}}><Inp label="Units" value={newSip.units} onChange={e=>setNewSip(p=>({...p,units:e.target.value}))} placeholder="0"/></div></div><div style={S.row2}><button style={{...S.addBtn,flex:1,marginTop:0}} onClick={()=>{if(!newSip.name||!newSip.amount)return;uSips([...sips,{id:Date.now(),...newSip,amount:f(newSip.amount)}]);setNewSip({name:'',amount:'',debitDate:'',startDate:'',frequency:'monthly',units:'',status:'active'});setAddingSip(false);}}>Save</button><button style={{...S.addBtn,flex:1,marginTop:0,background:'#1A1A1A',color:'#888'}} onClick={()=>setAddingSip(false)}>Cancel</button></div></div>}
-        </div>
-      </div>}
-
-      {/* ── STOCKS with search ── */}
-      {subTab==='stocks'&&<div>
-        <div style={{display:'flex',justifyContent:'space-between',marginBottom:'10px'}}><div style={{fontSize:'10px',color:'#3A3A3A'}}>NSE prices</div><button style={S.refreshBtn} onClick={async()=>{setLoadingStocks(true);uStocks(await fetchSP(stocks));setLoadingStocks(false);}}>{loadingStocks?'...':'\u21BB Prices'}</button></div>
-        {stocks.map(h=>{var cur=h.qty*(h.currentPrice||0),cost=h.qty*(h.avgPrice||0);
-          return isEditing('stock',h.id)?<div key={h.id} style={{padding:'10px',background:'#0D0B00',borderRadius:'10px',marginBottom:'8px'}}><Inp label="Qty" value={editId.data.qty||''} onChange={e=>ed('qty',f(e.target.value))}/><Inp label="Avg Price" value={editId.data.avgPrice||''} onChange={e=>ed('avgPrice',f(e.target.value))}/><div style={S.row2}><button style={{...S.addBtn,flex:1,marginTop:0}} onClick={()=>saveEdit('stock')}>Save</button><button style={{...S.addBtn,flex:1,marginTop:0,background:'#1A1A1A',color:'#888'}} onClick={()=>setEditId(null)}>Cancel</button></div></div>
-          :<div key={h.id} style={S.holdCard}><div style={{display:'flex',justifyContent:'space-between'}}><div style={{flex:1}}><div style={{fontSize:'14px',fontWeight:800,color:'#F2C94C'}}>{h.symbol} {h.change!=null&&<span style={{fontSize:'10px',color:h.change>=0?'#22C55E':'#EF4444'}}>{h.change>=0?'+':''}{(h.change||0).toFixed(2)}%</span>}</div><div style={{fontSize:'10px',color:'#3A3A3A'}}>{h.qty} shares avg \u20B9{h.avgPrice}</div></div><div style={{textAlign:'right'}}><div style={{fontSize:'14px',fontWeight:800,color:'#F2C94C'}}>{h.currentPrice?fmt(cur):'\u2014'}</div>{cost>0&&h.currentPrice&&<div style={{fontSize:'11px',color:gc(cur,cost)}}>{pct(cur,cost)}%</div>}</div></div><div style={{display:'flex',justifyContent:'flex-end',marginTop:'4px'}}><Acts onEdit={()=>startEdit('stock',h.id,{qty:h.qty,avgPrice:h.avgPrice})} onRemove={()=>uStocks(stocks.filter(x=>x.id!==h.id))}/></div></div>;})}
-        {!addingStock?<div><button style={S.addBtn} onClick={()=>setAddingStock(true)}>+ Add Stock</button><input ref={stockFileRef} type="file" accept=".csv,.xlsx,.xls" style={{display:'none'}} onChange={e=>{if(e.target.files[0])importStocks(e.target.files[0]);e.target.value='';}}/><button style={S.secBtn} onClick={()=>stockFileRef.current?.click()}>{'\uD83D\uDCE4'} Import from Zerodha/CSV</button></div>
-        :<div style={S.card}><div style={S.ct}>Add Stock</div>
-          <div style={{marginBottom:'8px'}}><div style={_ls}>Search Company</div><input style={_is} placeholder="Type company name..." value={stockSearch} onChange={e=>{setStockSearch(e.target.value);if(e.target.value.length>=2)searchStocks(e.target.value);else setStockResults([]);}}/></div>
-          {stockResults.length>0&&!newStock.symbol&&<div style={{background:'#0A0A0A',borderRadius:'8px',overflow:'hidden',marginBottom:'10px',border:'1px solid #1C1C1C'}}>{stockResults.map(r=><div key={r.symbol} style={S.srRow} onClick={()=>{setNewStock(p=>({...p,symbol:r.symbol,name:r.symbol}));setStockResults([]);setStockSearch(r.symbol);}}><div style={{color:'#F2C94C'}}>{r.symbol}</div>{r.price&&<div style={{color:'#3A3A3A',fontSize:'10px'}}>\u20B9{r.price}</div>}</div>)}</div>}
-          {!stockResults.length&&<div style={{marginBottom:'8px'}}><div style={_ls}>Or enter NSE Symbol directly</div><input style={_is} placeholder="RELIANCE" value={newStock.symbol} onChange={e=>setNewStock(p=>({...p,symbol:e.target.value.toUpperCase()}))}/></div>}
-          <div style={S.row2}><div style={{flex:1}}><Inp label="Qty" value={newStock.qty} onChange={e=>setNewStock(p=>({...p,qty:e.target.value}))}/></div><div style={{flex:1}}><Inp label="Avg Price" value={newStock.avgPrice} onChange={e=>setNewStock(p=>({...p,avgPrice:e.target.value}))}/></div></div>
-          <div style={S.row2}><button style={{...S.addBtn,flex:1,marginTop:0}} onClick={addStockFn}>{loadingStocks?'...':'Add'}</button><button style={{...S.addBtn,flex:1,marginTop:0,background:'#1A1A1A',color:'#888'}} onClick={()=>{setAddingStock(false);setNewStock({symbol:'',name:'',qty:'',avgPrice:''});setStockSearch('');setStockResults([]);}}>Cancel</button></div>
-        </div>}
-      </div>}
-
-      {/* ── CRYPTO ── */}
-      {subTab==='crypto'&&<div>
-        <div style={{fontSize:'10px',color:'#3A3A3A',marginBottom:'10px'}}>Live prices via CoinGecko (INR)</div>
-        {crypto.map(c=>{var curV=f(c.qty)*(c.priceINR||0),costV=f(c.qty)*f(c.buyPrice);
-          return isEditing('crypto',c.id)?<div key={c.id} style={{padding:'10px',background:'#0D0B00',borderRadius:'10px',marginBottom:'8px'}}><Inp label="Quantity" value={editId.data.qty||''} onChange={e=>ed('qty',e.target.value)}/><Inp label="Buy Price/coin" value={editId.data.buyPrice||''} onChange={e=>ed('buyPrice',e.target.value)}/><div style={S.row2}><button style={{...S.addBtn,flex:1,marginTop:0}} onClick={()=>saveEdit('crypto')}>Save</button><button style={{...S.addBtn,flex:1,marginTop:0,background:'#1A1A1A',color:'#888'}} onClick={()=>setEditId(null)}>Cancel</button></div></div>
-          :<div key={c.id} style={S.holdCard}><div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}><div style={{flex:1}}><div style={{display:'flex',alignItems:'center',gap:'6px',marginBottom:'3px'}}><span style={{fontSize:'14px',fontWeight:800,color:'#F2C94C'}}>{c.symbol}</span>{c.change24h!=null&&<span style={{fontSize:'10px',padding:'2px 6px',borderRadius:'4px',background:c.change24h>=0?'#052205':'#1A0505',color:c.change24h>=0?'#22C55E':'#EF4444',fontWeight:700}}>{c.change24h>=0?'+':''}{(c.change24h||0).toFixed(1)}%</span>}</div><div style={{fontSize:'10px',color:'#3A3A3A'}}>{c.qty} {c.symbol}</div></div><div style={{textAlign:'right'}}><div style={{fontSize:'14px',fontWeight:800,color:'#F2C94C'}}>{c.priceINR?fmt(curV):'\u2014'}</div>{costV>0&&c.priceINR&&<div style={{fontSize:'11px',color:gc(curV,costV)}}>{pct(curV,costV)}%</div>}</div></div><div style={{display:'flex',justifyContent:'flex-end',marginTop:'4px'}}><Acts onEdit={()=>startEdit('crypto',c.id,{qty:c.qty,buyPrice:c.buyPrice})} onRemove={()=>uCrypto(crypto.filter(x=>x.id!==c.id))}/></div></div>;})}
-        {cryptoVal>0&&<div style={{padding:'10px',background:'#141414',borderRadius:'10px',marginBottom:'8px',display:'flex',justifyContent:'space-around'}}><div style={{textAlign:'center'}}><div style={{fontSize:'9px',color:'#3A3A3A'}}>INVESTED</div><div style={{fontSize:'13px',fontWeight:700,color:'#888'}}>{fmt(cryptoCost)}</div></div><div style={{textAlign:'center'}}><div style={{fontSize:'9px',color:'#3A3A3A'}}>CURRENT</div><div style={{fontSize:'13px',fontWeight:700,color:'#F2C94C'}}>{fmt(cryptoVal)}</div></div><div style={{textAlign:'center'}}><div style={{fontSize:'9px',color:'#3A3A3A'}}>P&L</div><div style={{fontSize:'13px',fontWeight:700,color:gc(cryptoVal,cryptoCost)}}>{cryptoVal>=cryptoCost?'+':''}{fmt(cryptoVal-cryptoCost)}</div></div></div>}
-        {!addingCrypto?<button style={S.addBtn} onClick={()=>setAddingCrypto(true)}>+ Add Crypto</button>
-        :<div style={{background:'#141414',borderRadius:'10px',padding:'12px',marginTop:'4px'}}><div style={_ls}>Select Coin</div><div style={{display:'flex',gap:'4px',flexWrap:'wrap',marginBottom:'10px'}}>{[['bitcoin','BTC'],['ethereum','ETH'],['solana','SOL'],['ripple','XRP'],['cardano','ADA'],['dogecoin','DOGE'],['polkadot','DOT'],['avalanche-2','AVAX'],['chainlink','LINK'],['polygon','MATIC'],['litecoin','LTC'],['shiba-inu','SHIB']].map(([id,sym])=><button key={id} style={S.chip(newCrypto.coin===id)} onClick={()=>setNewCrypto(p=>({...p,coin:id,symbol:sym}))}>{sym}</button>)}</div><div style={S.row2}><div style={{flex:1}}><Inp label="Quantity" value={newCrypto.qty} onChange={e=>setNewCrypto(p=>({...p,qty:e.target.value}))} placeholder="0.05"/></div><div style={{flex:1}}><Inp label="Buy Price/coin (\u20B9)" value={newCrypto.buyPrice} onChange={e=>setNewCrypto(p=>({...p,buyPrice:e.target.value}))}/></div></div><div style={S.row2}><button style={{...S.addBtn,flex:1,marginTop:0}} onClick={async()=>{if(!newCrypto.qty)return;var c={id:Date.now(),coin:newCrypto.coin,symbol:newCrypto.symbol,qty:f(newCrypto.qty),buyPrice:f(newCrypto.buyPrice),priceINR:null,change24h:null};var updated=await fetchCryptoPrices([c]);uCrypto([...crypto,updated[0]]);setNewCrypto({coin:'bitcoin',symbol:'BTC',qty:'',buyPrice:''});setAddingCrypto(false);}}>Add</button><button style={{...S.addBtn,flex:1,marginTop:0,background:'#1A1A1A',color:'#888'}} onClick={()=>setAddingCrypto(false)}>Cancel</button></div></div>}
-      </div>}
-
-      {/* ── FDs ── */}
-      {subTab==='fds'&&<div>
-        {selectedFd?(()=>{var fd=selectedFd,td=daysBetween(fd.startDate,fd.maturityDate),held=daysHeld(fd.startDate),left=daysLeft(fd.maturityDate),ma=calcFD(fd.principal,fd.rate,td,fd.compounding),curVal=calcFD(fd.principal,fd.rate,Math.max(0,held),fd.compounding),int=ma-fd.principal,curInt=curVal-fd.principal,prog=Math.min(100,Math.max(0,(held/td)*100)),isMat=left<=0,wd=wdDate||todayStr(),dAW=daysBetween(fd.startDate,wd),eR=Math.max(0,f(fd.rate)-f(penalty)),pI=f(fd.principal)*Math.pow(1+eR/100/f(fd.compounding),f(fd.compounding)*Math.max(0,dAW)/365)-f(fd.principal),pT=f(fd.principal)+pI,lI=int-pI;return<div>
-          <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'12px'}}><button onClick={()=>setSelectedFd(null)} style={{background:'none',border:'none',color:'#F2C94C',fontSize:'18px',cursor:'pointer'}}>{'\u2190'}</button><div style={{fontSize:'16px',fontWeight:800,color:'#F2C94C'}}>{fd.bank}</div></div>
-          <div style={{...S.cardG,padding:'16px'}}>{!isMat&&<div style={{marginBottom:'12px'}}><div style={{fontSize:'9px',color:'#6A500A',letterSpacing:'1.5px',textTransform:'uppercase'}}>CURRENT VALUE (TODAY)</div><div style={{fontSize:'28px',fontWeight:800,color:'#F2C94C'}}>{fmt(curVal)}</div><div style={{fontSize:'11px',color:'#22C55E'}}>+{fmt(curInt)} earned so far</div></div>}<div><div style={{fontSize:'9px',color:'#6A500A',letterSpacing:'1.5px',textTransform:'uppercase'}}>{isMat?'MATURED':'AT MATURITY ('+fmtDate(fd.maturityDate)+')'}</div><div style={{fontSize:isMat?'28px':'18px',fontWeight:800,color:isMat?'#F2C94C':'#888'}}>{fmt(ma)}</div><div style={{fontSize:'11px',color:'#22C55E'}}>+{fmt(int)} total interest</div></div><div style={{fontSize:'10px',color:isMat?'#888':left<=30?'#EF4444':'#22C55E',marginTop:'8px'}}>{isMat?'Matured':left+' days left \u00B7 '+held+' days held'}</div>{!isMat&&<div style={{height:'4px',background:'#1A1A1A',borderRadius:'2px',marginTop:'6px'}}><div style={{height:'100%',width:prog+'%',background:'#F2C94C',borderRadius:'2px'}}/></div>}</div>
-          <div style={{...S.card,border:'1px solid #F2C94C33'}}><div style={S.ct}>Early Withdrawal</div><div style={S.row2}><div style={{flex:1}}><div style={_ls}>Date</div><input style={_is} type="date" value={wdDate||todayStr()} onChange={e=>setWdDate(e.target.value)}/></div><div style={{flex:1}}><div style={_ls}>Penalty %</div><input style={_is} type="number" step="0.25" value={penalty} onChange={e=>setPenalty(e.target.value)}/></div></div><div style={{background:'#0A0A0A',borderRadius:'10px',padding:'10px'}}><Dr label="Eff. rate" val={eR.toFixed(2)+'%'} color="#888"/><Dr label="Interest earned" val={fmt(pI)} color="#F2C94C"/><Dr label="Interest lost" val={fmt(Math.max(0,lI))} color="#EF4444" bold/><Dr label="Total in hand" val={fmt(pT)} color="#22C55E" bold/></div></div>
-          <button style={{...S.addBtn,background:'#1A0505',color:'#EF4444'}} onClick={()=>{uFds(fds.filter(x=>x.id!==fd.id));setSelectedFd(null);}}>Remove FD</button>
-        </div>;})()
-        :addingFd?(()=>{var upd=(k,v)=>setFdForm(p=>({...p,[k]:v}));var ht=m=>{upd('tenureMonths',m);if(fdForm.startDate&&m){var d=new Date(fdForm.startDate);d.setMonth(d.getMonth()+parseInt(m));upd('maturityDate',d.toISOString().split('T')[0]);}};var hs=d=>{upd('startDate',d);if(fdForm.tenureMonths&&d){var dt=new Date(d);dt.setMonth(dt.getMonth()+parseInt(fdForm.tenureMonths));upd('maturityDate',dt.toISOString().split('T')[0]);}};return<div>
-          <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'12px'}}><button onClick={()=>setAddingFd(false)} style={{background:'none',border:'none',color:'#F2C94C',fontSize:'18px',cursor:'pointer'}}>{'\u2190'}</button><div style={{fontSize:'16px',fontWeight:800,color:'#F2C94C'}}>New FD</div></div>
-          <div style={S.card}><Inp label="Bank" value={fdForm.bank} onChange={e=>upd('bank',e.target.value)} type="text" placeholder="SBI, HDFC..."/><div style={S.row2}><div style={{flex:1}}><Inp label="Principal" value={fdForm.principal} onChange={e=>upd('principal',e.target.value)}/></div><div style={{flex:1}}><Inp label="Rate %" value={fdForm.rate} onChange={e=>upd('rate',e.target.value)}/></div></div><div style={S.row2}><div style={{flex:1}}><div style={_ls}>Start Date</div><input style={_is} type="date" value={fdForm.startDate} onChange={e=>hs(e.target.value)}/></div><div style={{flex:1}}><Inp label="Tenure (Months)" value={fdForm.tenureMonths} onChange={e=>ht(e.target.value)}/></div></div><div style={{marginBottom:'10px'}}><div style={_ls}>Maturity Date {fdForm.tenureMonths&&fdForm.startDate?'(auto)':''}</div><input style={{..._is,color:fdForm.maturityDate?'#F2C94C':'#3A3A3A'}} type="date" value={fdForm.maturityDate} onChange={e=>upd('maturityDate',e.target.value)}/></div><div style={{marginBottom:'10px'}}><div style={_ls}>Compounding</div><div style={{display:'flex',gap:'6px'}}>{[['4','Qtrly'],['12','Monthly'],['1','Yearly']].map(p=><button key={p[0]} style={S.chip(fdForm.compounding===p[0])} onClick={()=>upd('compounding',p[0])}>{p[1]}</button>)}</div></div>{fdForm.principal&&fdForm.rate&&fdForm.maturityDate&&fdForm.startDate&&<div style={{padding:'10px',background:'#141414',borderRadius:'10px',marginBottom:'10px'}}><Dr label="Maturity Date" val={fmtDate(fdForm.maturityDate)}/><Dr label="Maturity Amount" val={fmt(calcFD(f(fdForm.principal),f(fdForm.rate),daysBetween(fdForm.startDate,fdForm.maturityDate),fdForm.compounding))} color="#22C55E"/><Dr label="Interest" val={fmt(calcFD(f(fdForm.principal),f(fdForm.rate),daysBetween(fdForm.startDate,fdForm.maturityDate),fdForm.compounding)-f(fdForm.principal))} color="#22C55E"/></div>}<div style={S.row2}><button style={{...S.addBtn,flex:1,marginTop:0}} onClick={()=>{if(!fdForm.principal||!fdForm.rate||!fdForm.startDate||!fdForm.maturityDate||!fdForm.bank)return;uFds([...fds,{id:Date.now(),bank:fdForm.bank,principal:f(fdForm.principal),rate:f(fdForm.rate),startDate:fdForm.startDate,maturityDate:fdForm.maturityDate,compounding:fdForm.compounding}]);setFdForm({bank:'',principal:'',rate:'',startDate:'',maturityDate:'',tenureMonths:'',compounding:'4'});setAddingFd(false);}}>Save</button><button style={{...S.addBtn,flex:1,marginTop:0,background:'#1A1A1A',color:'#888'}} onClick={()=>setAddingFd(false)}>Cancel</button></div></div>
-        </div>;})()
-        :<div>
-          {fds.length>0&&<div style={S.cardG}><div style={{display:'flex'}}>{[['Invested',fmt(fds.reduce((s,fd)=>s+fd.principal,0))],['Today',fmt(fdVal)],['Maturity',fmt(fdMatVal)]].map((p,i)=><div key={p[0]} style={{flex:1,textAlign:'center',borderRight:i<2?'1px solid #2A2A1A':'none'}}><div style={{fontSize:'9px',color:'#6A500A',textTransform:'uppercase'}}>{p[0]}</div><div style={{fontSize:'14px',fontWeight:800,color:'#F2C94C'}}>{p[1]}</div></div>)}</div></div>}
-          {fds.map(fd=>{var td=daysBetween(fd.startDate,fd.maturityDate),left=daysLeft(fd.maturityDate),held=daysHeld(fd.startDate),mat=calcFD(fd.principal,fd.rate,td,fd.compounding),curVal=calcFD(fd.principal,fd.rate,Math.max(0,held),fd.compounding),prog=Math.min(100,Math.max(0,(held/td)*100)),isMat=left<=0;return<div key={fd.id} style={{background:'#141414',border:'1px solid #1C1C1C',borderRadius:'12px',padding:'13px',marginBottom:'8px',cursor:'pointer'}} onClick={()=>{setSelectedFd(fd);setWdDate('');setPenalty('1');}}><div style={{display:'flex',justifyContent:'space-between',marginBottom:'6px'}}><div><div style={{fontSize:'14px',fontWeight:800,color:'#F2C94C'}}>{fd.bank}</div><div style={{fontSize:'11px',color:'#3A3A3A'}}>{fd.rate}% {fmt(fd.principal)}</div></div><div style={{textAlign:'right'}}><div style={{fontSize:'14px',fontWeight:800,color:'#F2C94C'}}>{fmt(isMat?mat:curVal)}</div><div style={{fontSize:'9px',color:'#6A500A'}}>{isMat?'Matured':'Today'}</div>{!isMat&&<div style={{fontSize:'10px',color:'#22C55E'}}>Mat: {fmt(mat)}</div>}</div></div>{!isMat&&<div style={{height:'3px',background:'#1A1A1A',borderRadius:'2px'}}><div style={{height:'100%',width:prog+'%',background:'#22C55E',borderRadius:'2px',opacity:0.7}}/></div>}<div style={{display:'flex',justifyContent:'space-between',marginTop:'4px'}}><span style={{fontSize:'10px',color:'#3A3A3A'}}>{fmtDate(fd.maturityDate)}</span><span style={{fontSize:'10px',color:isMat?'#888':'#22C55E'}}>{isMat?'Matured':left+'d'}</span></div></div>;})}
-          <button style={S.addBtn} onClick={()=>setAddingFd(true)}>+ Add FD</button>
-        </div>}
-      </div>}
-    </div>}
-
-    {tab==='tax'&&<div style={S.pg}>
-      <div style={S.cardG}><div style={{fontSize:'10px',color:'#6A500A',textTransform:'uppercase',letterSpacing:'1.5px'}}>Regime: {taxProfile.regime==='new'?'New':'Old'} | Slab: {slabRate()}% | Income: {fmt(latestIncome)}</div></div>
-      {(mfVal>0||stVal>0)&&(()=>{var ltcg=mfHoldings.filter(h=>h.type==='equity').reduce((s,h)=>s+Math.max(0,h.units*(h.currentNav||0)-h.units*(h.avgNav||0)),0)+stocks.reduce((s,h)=>s+Math.max(0,h.qty*(h.currentPrice||0)-h.qty*(h.avgPrice||0)),0),taxable=Math.max(0,ltcg-125000),tax=taxable*0.125;return<div style={S.card}><div style={S.ct}>Equity LTCG</div><Dr label="Gains" val={fmt(ltcg)}/><Dr label="Exempt" val={'\u20B91.25L'} color="#22C55E"/><Dr label="Taxable" val={fmt(taxable)} color={taxable>0?'#EF4444':'#22C55E'}/><Dr label="Tax @12.5%" val={fmt(tax)} color={tax>0?'#EF4444':'#22C55E'}/>{ltcg>0&&ltcg<125000&&<div style={{fontSize:'11px',color:'#22C55E',marginTop:'8px',padding:'8px',background:'#050F05',borderRadius:'8px'}}>Book {fmt(125000-ltcg)} more LTCG this FY tax-free!</div>}</div>;})()}
-      {cryptoVal>0&&<div style={S.card}><div style={S.ct}>Crypto Tax</div><Dr label="Crypto Gains" val={fmt(Math.max(0,cryptoVal-cryptoCost))}/><Dr label="Tax @30% flat" val={fmt(Math.max(0,cryptoVal-cryptoCost)*0.3)} color="#EF4444"/><div style={{fontSize:'11px',color:'#555',marginTop:'4px'}}>No exemptions, no loss offset, 1% TDS on transfers.</div></div>}
-      <div style={S.card}><div style={S.ct}>Tax Tips</div>{[['Harvest \u20B91.25L LTCG yearly','Sell & repurchase equity before March 31. Zero tax up to \u20B91.25L.'],['SGB 8-year hold','Original subscribers holding 8 years get zero capital gains tax.'],['EPF 5-year rule','10% TDS if withdrawn early. Tax-free after 5 years.'],['NPS extra \u20B950K','80CCD(1B) gives extra deduction in old regime.'],['PPF is EEE','Tax-free at deposit, interest, and withdrawal.'],['File ITR on time','Capital losses expire without filing by July 31.']].map(p=><div key={p[0]} style={{marginBottom:'8px',paddingBottom:'8px',borderBottom:'1px solid #141414'}}><div style={{fontSize:'12px',fontWeight:700,color:'#F2C94C',marginBottom:'2px'}}>{p[0]}</div><div style={{fontSize:'11px',color:'#444',lineHeight:1.5}}>{p[1]}</div></div>)}</div>
-    </div>}
-
-    <div style={S.nav}>{TABS.map(t=><div key={t.k} style={S.ni(tab===t.k)} onClick={()=>{setTab(t.k);setSubTab('portfolio');setEditId(null);}}><span style={{fontSize:'18px'}}>{t.i}</span><span style={S.nl(tab===t.k)}>{t.l}</span></div>)}</div>
-  </div>);
+  );
 }
-
+ 
 ReactDOM.createRoot(document.getElementById('root')).render(<WealthApp/>);
 </script>
 </body>
