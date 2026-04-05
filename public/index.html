@@ -366,6 +366,7 @@ function WealthApp(){
   // Snapshot & Refresh
   const saveSnapshot=nw=>{var t=todayStr();var h=load('w_nwhistory',[]);var l=h.length>0?h[h.length-1]:null;if(l&&l.dk===t)h[h.length-1]={dk:t,date:new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short'}),nw};else h.push({dk:t,date:new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short'}),nw});if(h.length>365)h=h.slice(-365);save('w_nwhistory',h);setNwHistory(h);};
   const refreshAll=async()=>{setRefreshing(true);var um=mfHoldings,us=stocks,uc=crypto;if(mfHoldings.length){um=await Promise.all(mfHoldings.map(async h=>{var n=await fetchNAV(h.schemeCode);return n?{...h,currentNav:n.nav,navDate:n.date}:h;}));uMf(um);}if(stocks.length){us=await fetchSP(stocks);uStocks(us);}if(crypto.length){uc=await fetchCryptoPrices(crypto);uCrypto(uc);}setRefreshing(false);return{mf:um,st:us,cr:uc};};
+  useEffect(()=>{if(!load('w_migv2',false)){const fix=(arr,setter)=>{if(arr.length<2)return;const seen=new Set();let ch=false;const out=arr.map(x=>{if(seen.has(x.id)){ch=true;return{...x,id:Date.now()+Math.random()};}seen.add(x.id);return x;});if(ch)setter(out);};fix(debts,uDebts);fix(mfHoldings,uMf);fix(stocks,uStocks);fix(crypto,uCrypto);fix(fds,uFds);fix(sips,uSips);fix(metalItems,uMetalItems);fix(goals,uGoals);fix(insurance,uIns);fix(properties,uProps);save('w_migv2',true);}},[]);
   useEffect(()=>{if(!locked&&!didAutoRefresh.current){didAutoRefresh.current=true;refreshAll().then(r=>{var nw=totalNW();if(nw>0)saveSnapshot(nw);});}},[locked]);
  
   // CSV Export
@@ -450,9 +451,9 @@ function WealthApp(){
  
         {/* Debt */}
         <div style={S.card}><div style={S.ct}>Liabilities</div>
-          {debts.map(d=>{const la=d.type==='homeloan'?loanAnalysis(d):null;return<div key={d.id} style={{padding:'8px',background:'#141414',borderRadius:'8px',marginBottom:'4px',cursor:'pointer'}} onClick={()=>setSelectedDebt(d)}>
+          {debts.map((d,dIdx)=>{const la=d.type==='homeloan'?loanAnalysis(d):null;return<div key={d.id} style={{padding:'8px',background:'#141414',borderRadius:'8px',marginBottom:'4px',cursor:'pointer'}} onClick={()=>setSelectedDebt(d)}>
             <div style={{display:'flex',justifyContent:'space-between'}}><div><div style={{fontSize:'12px',fontWeight:700,color:'#EF4444'}}>{d.name}</div><div style={{fontSize:'10px',color:'#3A3A3A'}}>{d.type==='homeloan'?'Home Loan':d.type==='family'?'Family':'Personal'}{d.interestRate?' \u00B7 '+d.interestRate+'%':''}{d.emi?' \u00B7 EMI \u20B9'+f(d.emi).toLocaleString('en-IN'):''}</div>{la&&<div style={{height:'3px',background:'#1A1A1A',borderRadius:'2px',marginTop:'4px',width:'100%'}}><div style={{height:'100%',width:la.completion+'%',background:'#F2C94C',borderRadius:'2px'}}/></div>}</div><div style={{textAlign:'right'}}><div style={{fontSize:'14px',fontWeight:800,color:'#EF4444'}}>{fmt(f(d.outstanding))}</div>{la&&<div style={{fontSize:'9px',color:'#6A500A'}}>{la.completion}% paid</div>}</div></div>
-            <IA onEdit={()=>{setEditingDebtId(d.id);setNewDebt({...d,originalAmount:String(d.originalAmount||''),outstanding:String(d.outstanding),interestRate:String(d.interestRate||''),emi:String(d.emi||''),tenureMonths:String(d.tenureMonths||''),rateResets:d.rateResets||[],prepayments:d.prepayments||[]});setAddingDebt(true);}} onRemove={()=>uDebts(debts.filter(x=>x.id!==d.id))}/>
+            <IA onEdit={()=>{setEditingDebtId(dIdx);setNewDebt({...d,originalAmount:String(d.originalAmount||''),outstanding:String(d.outstanding),interestRate:String(d.interestRate||''),emi:String(d.emi||''),tenureMonths:String(d.tenureMonths||''),rateResets:d.rateResets||[],prepayments:d.prepayments||[]});setAddingDebt(true);}} onRemove={()=>uDebts(debts.filter((_,i)=>i!==dIdx))}/>
           </div>})}
           {selectedDebt&&selectedDebt.type==='homeloan'&&(()=>{const d=selectedDebt,la=loanAnalysis(d);return<div style={{...S.card,border:'1px solid #EF444433'}}>
             <div style={{display:'flex',justifyContent:'space-between',marginBottom:'8px'}}><div style={{fontSize:'14px',fontWeight:800,color:'#F2C94C'}}>{d.name} \u2014 Analysis</div><button style={rBtn} onClick={()=>setSelectedDebt(null)}>close</button></div>
@@ -482,7 +483,7 @@ function WealthApp(){
             <div style={S.row2}><div style={{flex:1}}><div style={_lblS}>Start Date</div><input style={_inpS} type="date" value={newDebt.startDate} onChange={e=>setNewDebt(p=>({...p,startDate:e.target.value}))}/></div><div style={{flex:1}}><Inp label="Tenure (months)" value={newDebt.tenureMonths} onChange={e=>setNewDebt(p=>({...p,tenureMonths:e.target.value}))}/></div></div>
             <div style={{display:'flex',gap:'6px',marginBottom:'8px'}}><button style={S.chip(newDebt.loanType==='floating')} onClick={()=>setNewDebt(p=>({...p,loanType:'floating'}))}>Floating</button><button style={S.chip(newDebt.loanType==='fixed')} onClick={()=>setNewDebt(p=>({...p,loanType:'fixed'}))}>Fixed</button></div></div>}
             <Inp label="Notes" value={newDebt.notes} onChange={e=>setNewDebt(p=>({...p,notes:e.target.value}))} type="text" placeholder="Purpose..."/>
-            <div style={S.row2}><button style={{...S.addBtn,flex:1,marginTop:0}} onClick={()=>{if(!newDebt.outstanding||!newDebt.name)return;if(editingDebtId){uDebts(debts.map(d=>d.id===editingDebtId?{...d,...newDebt,outstanding:f(newDebt.outstanding),originalAmount:f(newDebt.originalAmount),interestRate:f(newDebt.interestRate),emi:f(newDebt.emi)}:d));}else{uDebts([...debts,{id:Date.now()+Math.random(),...newDebt,outstanding:f(newDebt.outstanding),originalAmount:f(newDebt.originalAmount),interestRate:f(newDebt.interestRate),emi:f(newDebt.emi)}]);}setAddingDebt(false);setEditingDebtId(null);}}>{editingDebtId?'Update':'Save'}</button><button style={{...S.addBtn,flex:1,marginTop:0,background:'#1A1A1A',color:'#888'}} onClick={()=>{setAddingDebt(false);setEditingDebtId(null);}}>Cancel</button></div>
+            <div style={S.row2}><button style={{...S.addBtn,flex:1,marginTop:0}} onClick={()=>{if(!newDebt.outstanding||!newDebt.name)return;if(editingDebtId!==null){uDebts(debts.map((d,i)=>i===editingDebtId?{...d,...newDebt,outstanding:f(newDebt.outstanding),originalAmount:f(newDebt.originalAmount),interestRate:f(newDebt.interestRate),emi:f(newDebt.emi)}:d));}else{uDebts([...debts,{id:Date.now()+Math.random(),...newDebt,outstanding:f(newDebt.outstanding),originalAmount:f(newDebt.originalAmount),interestRate:f(newDebt.interestRate),emi:f(newDebt.emi)}]);}setAddingDebt(false);setEditingDebtId(null);}}>{editingDebtId!==null?'Update':'Save'}</button><button style={{...S.addBtn,flex:1,marginTop:0,background:'#1A1A1A',color:'#888'}} onClick={()=>{setAddingDebt(false);setEditingDebtId(null);}}>Cancel</button></div>
           </div>}
         </div>
  
@@ -756,4 +757,5 @@ ReactDOM.createRoot(document.getElementById('root')).render(<WealthApp/>);
 </script>
 </body>
 </html>
+ 
  
