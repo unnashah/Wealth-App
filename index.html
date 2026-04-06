@@ -34,6 +34,7 @@ const calcFD=(p,r,days,freq=4)=>f(p)*Math.pow(1+f(r)/100/freq,freq*days/365);
 const todayStr=()=>new Date().toISOString().split('T')[0];
 const load=(key,fb)=>{try{const v=localStorage.getItem(key);return v?JSON.parse(v):fb;}catch{return fb;}};
 const save=(key,val)=>{try{localStorage.setItem(key,JSON.stringify(val));}catch{}};
+const saveAndSync=(key,val)=>{save(key,val);if(typeof pushSync==='function')try{pushSync();}catch{}};
 const addYears=(d,y)=>{const dt=new Date(d);dt.setFullYear(dt.getFullYear()+y);return dt.toISOString().split('T')[0];};
 const addMonths=(d,m)=>{const dt=new Date(d);dt.setMonth(dt.getMonth()+m);return dt.toISOString().split('T')[0];};
 const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -243,29 +244,37 @@ function WealthApp(){
   const [nwHistory,setNwHistory]=useState(()=>load('w_nwhistory',[]));
   const didAutoRefresh=useRef(false);
  
+  // Sync
+  const [syncStatus,setSyncStatus]=useState('');
+  const syncTimer=useRef(null);
+  const getAllData=()=>{const keys=['w_prices','w_metalItems','w_sgb','w_ppf','w_nps','w_epf','w_tax','w_crypto','w_mf','w_sips','w_stocks','w_fds','w_debts','w_props','w_ins','w_goals','w_expenses','w_nominees','w_docs','w_cg','w_nwhistory','w_pin'];const d={};keys.forEach(k=>{try{const v=localStorage.getItem(k);if(v)d[k]=JSON.parse(v);}catch{}});return d;};
+  const pushSync=()=>{const pin=load('w_pin',null);if(!pin)return;clearTimeout(syncTimer.current);syncTimer.current=setTimeout(async()=>{try{setSyncStatus('syncing');const r=await fetch('/api/sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin,action:'push',data:getAllData()})});if(r.ok)setSyncStatus('synced');else setSyncStatus('error');}catch{setSyncStatus('error');}setTimeout(()=>setSyncStatus(''),3000);},2000);};
+  const pullSync=async()=>{const pin=load('w_pin',null);if(!pin)return false;try{setSyncStatus('pulling');const r=await fetch('/api/sync?pin='+pin+'&action=pull');const j=await r.json();if(j.ok&&j.data){const keys=Object.keys(j.data).filter(k=>k!=='_ts'&&k!=='w_pin');let changed=false;keys.forEach(k=>{const cloud=JSON.stringify(j.data[k]);const local=localStorage.getItem(k);if(cloud!==local){localStorage.setItem(k,cloud);changed=true;}});if(changed){setSyncStatus('loaded from cloud');location.reload();}else{setSyncStatus('in sync');}setTimeout(()=>setSyncStatus(''),3000);return changed;}setSyncStatus('');return false;}catch{setSyncStatus('error');return false;}};
+ 
+ 
   // Save helpers
   const saveTimers=useRef({});
   const dSave=(key,val)=>{clearTimeout(saveTimers.current[key]);saveTimers.current[key]=setTimeout(()=>save(key,val),500);};
-  const uPrices=p=>{setPrices(p);save('w_prices',p);};
-  const uMetalItems=v=>{setMetalItems(v);save('w_metalItems',v);};
-  const uSgb=v=>{setSgb(v);dSave('w_sgb',v);};
+  const uPrices=p=>{setPrices(p);saveAndSync('w_prices',p);};
+  const uMetalItems=v=>{setMetalItems(v);saveAndSync('w_metalItems',v);};
+  const uSgb=v=>{setSgb(v);dSave('w_sgb',v);pushSync&&pushSync();};
   const uPpf=v=>{setPpf(v);dSave('w_ppf',v);};
   const uNps=v=>{setNps(v);dSave('w_nps',v);};
   const uEpf=v=>{setEpf(v);dSave('w_epf',v);};
-  const uTax=v=>{setTaxProfile(v);save('w_tax',v);};
-  const uCG=v=>{setCapitalGains(v);save('w_cg',v);};
-  const uCrypto=v=>{setCrypto(v);save('w_crypto',v);};
-  const uMf=v=>{setMfHoldings(v);save('w_mf',v);};
-  const uSips=v=>{setSips(v);save('w_sips',v);};
-  const uStocks=v=>{setStocks(v);save('w_stocks',v);};
-  const uFds=v=>{setFds(v);save('w_fds',v);};
-  const uDebts=v=>{setDebts(v);save('w_debts',v);};
-  const uProps=v=>{setProperties(v);save('w_props',v);};
-  const uIns=v=>{setInsurance(v);save('w_ins',v);};
-  const uGoals=v=>{setGoals(v);save('w_goals',v);};
-  const uNominees=v=>{setNominees(v);save('w_nominees',v);};
-  const uDocs=v=>{setDocs(v);save('w_docs',v);};
-  const uExpenses=v=>{setMonthlyExpenses(v);save('w_expenses',v);};
+  const uTax=v=>{setTaxProfile(v);saveAndSync('w_tax',v);};
+  const uCG=v=>{setCapitalGains(v);saveAndSync('w_cg',v);};
+  const uCrypto=v=>{setCrypto(v);saveAndSync('w_crypto',v);};
+  const uMf=v=>{setMfHoldings(v);saveAndSync('w_mf',v);};
+  const uSips=v=>{setSips(v);saveAndSync('w_sips',v);};
+  const uStocks=v=>{setStocks(v);saveAndSync('w_stocks',v);};
+  const uFds=v=>{setFds(v);saveAndSync('w_fds',v);};
+  const uDebts=v=>{setDebts(v);saveAndSync('w_debts',v);};
+  const uProps=v=>{setProperties(v);saveAndSync('w_props',v);};
+  const uIns=v=>{setInsurance(v);saveAndSync('w_ins',v);};
+  const uGoals=v=>{setGoals(v);saveAndSync('w_goals',v);};
+  const uNominees=v=>{setNominees(v);saveAndSync('w_nominees',v);};
+  const uDocs=v=>{setDocs(v);saveAndSync('w_docs',v);};
+  const uExpenses=v=>{setMonthlyExpenses(v);saveAndSync('w_expenses',v);};
  
   // APIs
   const fetchNAV=async code=>{if(!code)return null;try{const r=await fetch('https://api.mfapi.in/mf/'+code+'/latest');const d=await r.json();if(d&&d.data&&d.data[0])return{nav:parseFloat(d.data[0].nav),date:d.data[0].date};}catch{}return null;};
@@ -367,7 +376,7 @@ function WealthApp(){
   const saveSnapshot=nw=>{var t=todayStr();var h=load('w_nwhistory',[]);var l=h.length>0?h[h.length-1]:null;if(l&&l.dk===t)h[h.length-1]={dk:t,date:new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short'}),nw};else h.push({dk:t,date:new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short'}),nw});if(h.length>365)h=h.slice(-365);save('w_nwhistory',h);setNwHistory(h);};
   const refreshAll=async()=>{setRefreshing(true);var um=mfHoldings,us=stocks,uc=crypto;if(mfHoldings.length){um=await Promise.all(mfHoldings.map(async h=>{var n=await fetchNAV(h.schemeCode);return n?{...h,currentNav:n.nav,navDate:n.date}:h;}));uMf(um);}if(stocks.length){us=await fetchSP(stocks);uStocks(us);}if(crypto.length){uc=await fetchCryptoPrices(crypto);uCrypto(uc);}setRefreshing(false);return{mf:um,st:us,cr:uc};};
   useEffect(()=>{if(!load('w_migv3',false)){const fix=(arr,setter)=>{if(arr.length<2)return;const seen=new Set();let ch=false;const out=arr.map(x=>{if(seen.has(x.id)){ch=true;return{...x,id:Date.now()+Math.random()};}seen.add(x.id);return x;});if(ch)setter(out);};fix(debts,uDebts);fix(mfHoldings,uMf);fix(stocks,uStocks);fix(crypto,uCrypto);fix(fds,uFds);fix(sips,uSips);fix(metalItems,uMetalItems);fix(goals,uGoals);fix(insurance,uIns);fix(properties,uProps);save('w_migv3',true);}},[]);
-  useEffect(()=>{if(!locked&&!didAutoRefresh.current){didAutoRefresh.current=true;refreshAll().then(r=>{var nw=totalNW();if(nw>0)saveSnapshot(nw);});}},[locked]);
+  useEffect(()=>{if(!locked&&!didAutoRefresh.current){didAutoRefresh.current=true;pullSync().then(()=>refreshAll()).then(r=>{var nw=totalNW();if(nw>0)saveSnapshot(nw);});}},[locked]);
  
   // CSV Export
   const exportCSV=()=>{var rows=[['Category','Item','Qty','Cost','Value','Nominee','Ref No']];metalItems.forEach(i=>rows.push(['Metal',i.category+(i.desc?' - '+i.desc:''),i.category==='diamond'?'':i.weight+'g',i.cost||'',i.category==='diamond'?String(f(i.value)):String(f(i.weight)*(catRate(i.category)||0)),'','']));if(sgb.grams)rows.push(['SGB','Gold Bond',sgb.grams+'g',String(f(sgb.purchasePrice)*f(sgb.grams)),String(sgbVal()),'','']);properties.forEach(p=>rows.push(['Property',p.name,'',String(p.purchasePrice),String(p.currentValue),'','']));insurance.forEach(i=>rows.push(['Insurance',i.insurer+' '+i.type,'',String(i.premium),String(i.sumInsured),'',i.policyNo||'']));if(ppf.balance)rows.push(['PPF','','','',ppf.balance,'','']);if(nps.balance)rows.push(['NPS','','','',nps.balance,'','']);if(epf.balance)rows.push(['EPF','','','',epf.balance,'','']);crypto.forEach(c=>rows.push(['Crypto',c.symbol,String(c.qty),String(f(c.qty)*f(c.buyPrice)),String(f(c.qty)*(c.priceINR||0)),'','']));mfHoldings.forEach(h=>rows.push(['MF',h.schemeName,String(h.units),String(h.units*h.avgNav),String(h.units*(h.currentNav||0)),'','']));stocks.forEach(h=>rows.push(['Stock',h.symbol,String(h.qty),String(h.qty*h.avgPrice),String(h.qty*(h.currentPrice||0)),'','']));fds.forEach(fd=>rows.push(['FD',fd.bank,fd.rate+'%',String(fd.principal),String(calcFD(fd.principal,fd.rate,daysBetween(fd.startDate,fd.maturityDate),fd.compounding)),'','']));debts.forEach(d=>rows.push(['Debt',d.name,d.type,'','-'+d.outstanding,'','']));rows.push([]);rows.push(['TOTAL ASSETS','','','',String(totalAssets),'','']);rows.push(['TOTAL DEBT','','','','-'+String(totalDebt),'','']);rows.push(['NET WORTH','','','',String(totalNW()),'','']);var csv=rows.map(r=>r.map(c=>'"'+String(c||'').replace(/"/g,'""')+'"').join(',')).join('\n');var blob=new Blob([csv],{type:'text/csv'});var u=URL.createObjectURL(blob);var a=document.createElement('a');a.href=u;a.download='wealth_'+todayStr()+'.csv';a.click();URL.revokeObjectURL(u);};
@@ -407,7 +416,7 @@ function WealthApp(){
  
   return(
     <div style={S.wrap}>
-      <div style={S.hdr}><div style={{fontSize:'9px',letterSpacing:'2px',textTransform:'uppercase',color:'#6A500A'}}>{new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div><h1 style={{fontSize:'19px',fontWeight:800,color:'#F2C94C',margin:0}}>{titles[tab]}</h1></div>
+      <div style={S.hdr}><div style={{fontSize:'9px',letterSpacing:'2px',textTransform:'uppercase',color:'#6A500A'}}>{new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div><div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}><h1 style={{fontSize:'19px',fontWeight:800,color:'#F2C94C',margin:0}}>{titles[tab]}</h1>{syncStatus&&<span style={{fontSize:'9px',color:syncStatus==='error'?'#EF4444':'#22C55E',fontWeight:700}}>{syncStatus==='syncing'?'\u2191 Saving...':syncStatus==='pulling'?'\u2193 Loading...':syncStatus==='synced'?'\u2713 Synced':syncStatus==='loaded from cloud'?'\u2713 Loaded':syncStatus==='in sync'?'\u2713 OK':syncStatus==='error'?'\u2717 Error':syncStatus}</span>}</div></div>
  
       {importPreview&&<div style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.9)',zIndex:100,display:'flex',alignItems:'center',justifyContent:'center',padding:'16px'}}><div style={{background:'#0F0F0F',border:'1px solid #6A500A',borderRadius:'16px',padding:'18px',maxWidth:'380px',width:'100%',maxHeight:'80vh',overflow:'auto'}}><div style={{fontSize:'14px',fontWeight:800,color:'#F2C94C',marginBottom:'12px'}}>{importPreview.data.length} items found</div>{importPreview.data.slice(0,6).map((item,i)=><div key={i} style={{padding:'6px',background:'#141414',borderRadius:'6px',marginBottom:'3px',fontSize:'11px',color:'#F2C94C'}}>{importPreview.type==='stocks'?item.symbol+' \u00B7 '+item.qty+' shares':item.schemeName}</div>)}<div style={S.row2}><button style={{...S.addBtn,flex:1}} onClick={confirmImport}>Import</button><button style={{...S.addBtn,flex:1,background:'#1A1A1A',color:'#888'}} onClick={()=>setImportPreview(null)}>Cancel</button></div></div></div>}
  
@@ -423,7 +432,7 @@ function WealthApp(){
             <button style={S.refreshBtn} onClick={()=>setShowSettings(!showSettings)}>{'\u2699\uFE0F'}</button>
           </div>
         </div>
-        {showSettings&&<div style={S.card}><div style={S.ct}>Settings</div><button style={{...S.addBtn,background:'#1A1A1A',color:'#F2C94C',marginBottom:'8px'}} onClick={()=>{var p=prompt('New 4-digit PIN:');if(p&&/^\d{4}$/.test(p)){save('w_pin',p);alert('Done');}}}>Change PIN</button><button style={{...S.addBtn,background:'#1A1A1A',color:'#F2C94C',marginBottom:'8px'}} onClick={()=>{save('w_pin',null);alert('Removed');}}>Remove PIN</button><button style={{...S.addBtn,background:'#1A0505',color:'#EF4444'}} onClick={()=>{if(confirm('Delete ALL data?')){localStorage.clear();location.reload();}}}>Reset All</button></div>}
+        {showSettings&&<div style={S.card}><div style={S.ct}>Settings</div><button style={{...S.addBtn,background:'#0D0B00',color:'#22C55E',marginBottom:'8px',border:'1px solid #22C55E33'}} onClick={()=>pushSync()}>\u2191 Push to Cloud</button><button style={{...S.addBtn,background:'#0D0B00',color:'#3B82F6',marginBottom:'8px',border:'1px solid #3B82F633'}} onClick={()=>pullSync()}>\u2193 Pull from Cloud</button><button style={{...S.addBtn,background:'#1A1A1A',color:'#F2C94C',marginBottom:'8px'}} onClick={()=>{var p=prompt('New 4-digit PIN:');if(p&&/^\d{4}$/.test(p)){save('w_pin',p);alert('Done');}}}>Change PIN</button><button style={{...S.addBtn,background:'#1A1A1A',color:'#F2C94C',marginBottom:'8px'}} onClick={()=>{save('w_pin',null);alert('Removed');}}>Remove PIN</button><button style={{...S.addBtn,background:'#1A0505',color:'#EF4444'}} onClick={()=>{if(confirm('Delete ALL data?')){localStorage.clear();location.reload();}}}>Reset All</button></div>}
  
         {alerts.length>0&&<div style={S.card}><div style={S.ct}>Alerts & Reminders</div>{alerts.slice(0,6).map((a,i)=><AlertItem key={i} icon={a.icon} text={a.text} color={a.color}/>)}</div>}
         <NWChart history={nwHistory}/>
