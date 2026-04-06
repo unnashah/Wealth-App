@@ -34,6 +34,7 @@ const calcFD=(p,r,days,freq=4)=>f(p)*Math.pow(1+f(r)/100/freq,freq*days/365);
 const todayStr=()=>new Date().toISOString().split('T')[0];
 const load=(key,fb)=>{try{const v=localStorage.getItem(key);return v?JSON.parse(v):fb;}catch{return fb;}};
 const save=(key,val)=>{try{localStorage.setItem(key,JSON.stringify(val));}catch{}};
+const saveAndSync=(key,val)=>{save(key,val);if(typeof pushSync==='function')try{pushSync();}catch{}};
 const addYears=(d,y)=>{const dt=new Date(d);dt.setFullYear(dt.getFullYear()+y);return dt.toISOString().split('T')[0];};
 const addMonths=(d,m)=>{const dt=new Date(d);dt.setMonth(dt.getMonth()+m);return dt.toISOString().split('T')[0];};
 const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -243,29 +244,37 @@ function WealthApp(){
   const [nwHistory,setNwHistory]=useState(()=>load('w_nwhistory',[]));
   const didAutoRefresh=useRef(false);
  
+  // Sync
+  const [syncStatus,setSyncStatus]=useState('');
+  const syncTimer=useRef(null);
+  const getAllData=()=>{const keys=['w_prices','w_metalItems','w_sgb','w_ppf','w_nps','w_epf','w_tax','w_crypto','w_mf','w_sips','w_stocks','w_fds','w_debts','w_props','w_ins','w_goals','w_expenses','w_nominees','w_docs','w_cg','w_nwhistory','w_pin'];const d={};keys.forEach(k=>{try{const v=localStorage.getItem(k);if(v)d[k]=JSON.parse(v);}catch{}});return d;};
+  const pushSync=()=>{const pin=load('w_pin',null);if(!pin)return;clearTimeout(syncTimer.current);syncTimer.current=setTimeout(async()=>{try{setSyncStatus('syncing');const r=await fetch('/api/sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin,action:'push',data:getAllData()})});if(r.ok)setSyncStatus('synced');else setSyncStatus('error');}catch{setSyncStatus('error');}setTimeout(()=>setSyncStatus(''),3000);},2000);};
+  const pullSync=async()=>{const pin=load('w_pin',null);if(!pin)return false;try{setSyncStatus('pulling');const r=await fetch('/api/sync?pin='+pin+'&action=pull');const j=await r.json();if(j.ok&&j.data){const keys=Object.keys(j.data).filter(k=>k!=='_ts'&&k!=='w_pin');let changed=false;keys.forEach(k=>{const cloud=JSON.stringify(j.data[k]);const local=localStorage.getItem(k);if(cloud!==local){localStorage.setItem(k,cloud);changed=true;}});if(changed){setSyncStatus('loaded from cloud');location.reload();}else{setSyncStatus('in sync');}setTimeout(()=>setSyncStatus(''),3000);return changed;}setSyncStatus('');return false;}catch{setSyncStatus('error');return false;}};
+ 
+ 
   // Save helpers
   const saveTimers=useRef({});
   const dSave=(key,val)=>{clearTimeout(saveTimers.current[key]);saveTimers.current[key]=setTimeout(()=>save(key,val),500);};
-  const uPrices=p=>{setPrices(p);save('w_prices',p);};
-  const uMetalItems=v=>{setMetalItems(v);save('w_metalItems',v);};
-  const uSgb=v=>{setSgb(v);dSave('w_sgb',v);};
+  const uPrices=p=>{setPrices(p);saveAndSync('w_prices',p);};
+  const uMetalItems=v=>{setMetalItems(v);saveAndSync('w_metalItems',v);};
+  const uSgb=v=>{setSgb(v);dSave('w_sgb',v);pushSync&&pushSync();};
   const uPpf=v=>{setPpf(v);dSave('w_ppf',v);};
   const uNps=v=>{setNps(v);dSave('w_nps',v);};
   const uEpf=v=>{setEpf(v);dSave('w_epf',v);};
-  const uTax=v=>{setTaxProfile(v);save('w_tax',v);};
-  const uCG=v=>{setCapitalGains(v);save('w_cg',v);};
-  const uCrypto=v=>{setCrypto(v);save('w_crypto',v);};
-  const uMf=v=>{setMfHoldings(v);save('w_mf',v);};
-  const uSips=v=>{setSips(v);save('w_sips',v);};
-  const uStocks=v=>{setStocks(v);save('w_stocks',v);};
-  const uFds=v=>{setFds(v);save('w_fds',v);};
-  const uDebts=v=>{setDebts(v);save('w_debts',v);};
-  const uProps=v=>{setProperties(v);save('w_props',v);};
-  const uIns=v=>{setInsurance(v);save('w_ins',v);};
-  const uGoals=v=>{setGoals(v);save('w_goals',v);};
-  const uNominees=v=>{setNominees(v);save('w_nominees',v);};
-  const uDocs=v=>{setDocs(v);save('w_docs',v);};
-  const uExpenses=v=>{setMonthlyExpenses(v);save('w_expenses',v);};
+  const uTax=v=>{setTaxProfile(v);saveAndSync('w_tax',v);};
+  const uCG=v=>{setCapitalGains(v);saveAndSync('w_cg',v);};
+  const uCrypto=v=>{setCrypto(v);saveAndSync('w_crypto',v);};
+  const uMf=v=>{setMfHoldings(v);saveAndSync('w_mf',v);};
+  const uSips=v=>{setSips(v);saveAndSync('w_sips',v);};
+  const uStocks=v=>{setStocks(v);saveAndSync('w_stocks',v);};
+  const uFds=v=>{setFds(v);saveAndSync('w_fds',v);};
+  const uDebts=v=>{setDebts(v);saveAndSync('w_debts',v);};
+  const uProps=v=>{setProperties(v);saveAndSync('w_props',v);};
+  const uIns=v=>{setInsurance(v);saveAndSync('w_ins',v);};
+  const uGoals=v=>{setGoals(v);saveAndSync('w_goals',v);};
+  const uNominees=v=>{setNominees(v);saveAndSync('w_nominees',v);};
+  const uDocs=v=>{setDocs(v);saveAndSync('w_docs',v);};
+  const uExpenses=v=>{setMonthlyExpenses(v);saveAndSync('w_expenses',v);};
  
   // APIs
   const fetchNAV=async code=>{if(!code)return null;try{const r=await fetch('https://api.mfapi.in/mf/'+code+'/latest');const d=await r.json();if(d&&d.data&&d.data[0])return{nav:parseFloat(d.data[0].nav),date:d.data[0].date};}catch{}return null;};
@@ -366,8 +375,8 @@ function WealthApp(){
   // Snapshot & Refresh
   const saveSnapshot=nw=>{var t=todayStr();var h=load('w_nwhistory',[]);var l=h.length>0?h[h.length-1]:null;if(l&&l.dk===t)h[h.length-1]={dk:t,date:new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short'}),nw};else h.push({dk:t,date:new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short'}),nw});if(h.length>365)h=h.slice(-365);save('w_nwhistory',h);setNwHistory(h);};
   const refreshAll=async()=>{setRefreshing(true);var um=mfHoldings,us=stocks,uc=crypto;if(mfHoldings.length){um=await Promise.all(mfHoldings.map(async h=>{var n=await fetchNAV(h.schemeCode);return n?{...h,currentNav:n.nav,navDate:n.date}:h;}));uMf(um);}if(stocks.length){us=await fetchSP(stocks);uStocks(us);}if(crypto.length){uc=await fetchCryptoPrices(crypto);uCrypto(uc);}setRefreshing(false);return{mf:um,st:us,cr:uc};};
-  useEffect(()=>{if(!load('w_migv2',false)){const fix=(arr,setter)=>{if(arr.length<2)return;const seen=new Set();let ch=false;const out=arr.map(x=>{if(seen.has(x.id)){ch=true;return{...x,id:Date.now()+Math.random()};}seen.add(x.id);return x;});if(ch)setter(out);};fix(debts,uDebts);fix(mfHoldings,uMf);fix(stocks,uStocks);fix(crypto,uCrypto);fix(fds,uFds);fix(sips,uSips);fix(metalItems,uMetalItems);fix(goals,uGoals);fix(insurance,uIns);fix(properties,uProps);save('w_migv2',true);}},[]);
-  useEffect(()=>{if(!locked&&!didAutoRefresh.current){didAutoRefresh.current=true;refreshAll().then(r=>{var nw=totalNW();if(nw>0)saveSnapshot(nw);});}},[locked]);
+  useEffect(()=>{if(!load('w_migv3',false)){const fix=(arr,setter)=>{if(arr.length<2)return;const seen=new Set();let ch=false;const out=arr.map(x=>{if(seen.has(x.id)){ch=true;return{...x,id:Date.now()+Math.random()};}seen.add(x.id);return x;});if(ch)setter(out);};fix(debts,uDebts);fix(mfHoldings,uMf);fix(stocks,uStocks);fix(crypto,uCrypto);fix(fds,uFds);fix(sips,uSips);fix(metalItems,uMetalItems);fix(goals,uGoals);fix(insurance,uIns);fix(properties,uProps);save('w_migv3',true);}},[]);
+  useEffect(()=>{if(!locked&&!didAutoRefresh.current){didAutoRefresh.current=true;pullSync().then(()=>refreshAll()).then(r=>{var nw=totalNW();if(nw>0)saveSnapshot(nw);});}},[locked]);
  
   // CSV Export
   const exportCSV=()=>{var rows=[['Category','Item','Qty','Cost','Value','Nominee','Ref No']];metalItems.forEach(i=>rows.push(['Metal',i.category+(i.desc?' - '+i.desc:''),i.category==='diamond'?'':i.weight+'g',i.cost||'',i.category==='diamond'?String(f(i.value)):String(f(i.weight)*(catRate(i.category)||0)),'','']));if(sgb.grams)rows.push(['SGB','Gold Bond',sgb.grams+'g',String(f(sgb.purchasePrice)*f(sgb.grams)),String(sgbVal()),'','']);properties.forEach(p=>rows.push(['Property',p.name,'',String(p.purchasePrice),String(p.currentValue),'','']));insurance.forEach(i=>rows.push(['Insurance',i.insurer+' '+i.type,'',String(i.premium),String(i.sumInsured),'',i.policyNo||'']));if(ppf.balance)rows.push(['PPF','','','',ppf.balance,'','']);if(nps.balance)rows.push(['NPS','','','',nps.balance,'','']);if(epf.balance)rows.push(['EPF','','','',epf.balance,'','']);crypto.forEach(c=>rows.push(['Crypto',c.symbol,String(c.qty),String(f(c.qty)*f(c.buyPrice)),String(f(c.qty)*(c.priceINR||0)),'','']));mfHoldings.forEach(h=>rows.push(['MF',h.schemeName,String(h.units),String(h.units*h.avgNav),String(h.units*(h.currentNav||0)),'','']));stocks.forEach(h=>rows.push(['Stock',h.symbol,String(h.qty),String(h.qty*h.avgPrice),String(h.qty*(h.currentPrice||0)),'','']));fds.forEach(fd=>rows.push(['FD',fd.bank,fd.rate+'%',String(fd.principal),String(calcFD(fd.principal,fd.rate,daysBetween(fd.startDate,fd.maturityDate),fd.compounding)),'','']));debts.forEach(d=>rows.push(['Debt',d.name,d.type,'','-'+d.outstanding,'','']));rows.push([]);rows.push(['TOTAL ASSETS','','','',String(totalAssets),'','']);rows.push(['TOTAL DEBT','','','','-'+String(totalDebt),'','']);rows.push(['NET WORTH','','','',String(totalNW()),'','']);var csv=rows.map(r=>r.map(c=>'"'+String(c||'').replace(/"/g,'""')+'"').join(',')).join('\n');var blob=new Blob([csv],{type:'text/csv'});var u=URL.createObjectURL(blob);var a=document.createElement('a');a.href=u;a.download='wealth_'+todayStr()+'.csv';a.click();URL.revokeObjectURL(u);};
@@ -407,7 +416,7 @@ function WealthApp(){
  
   return(
     <div style={S.wrap}>
-      <div style={S.hdr}><div style={{fontSize:'9px',letterSpacing:'2px',textTransform:'uppercase',color:'#6A500A'}}>{new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div><h1 style={{fontSize:'19px',fontWeight:800,color:'#F2C94C',margin:0}}>{titles[tab]}</h1></div>
+      <div style={S.hdr}><div style={{fontSize:'9px',letterSpacing:'2px',textTransform:'uppercase',color:'#6A500A'}}>{new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div><div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}><h1 style={{fontSize:'19px',fontWeight:800,color:'#F2C94C',margin:0}}>{titles[tab]}</h1>{syncStatus&&<span style={{fontSize:'9px',color:syncStatus==='error'?'#EF4444':'#22C55E',fontWeight:700}}>{syncStatus==='syncing'?'\u2191 Saving...':syncStatus==='pulling'?'\u2193 Loading...':syncStatus==='synced'?'\u2713 Synced':syncStatus==='loaded from cloud'?'\u2713 Loaded':syncStatus==='in sync'?'\u2713 OK':syncStatus==='error'?'\u2717 Error':syncStatus}</span>}</div></div>
  
       {importPreview&&<div style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.9)',zIndex:100,display:'flex',alignItems:'center',justifyContent:'center',padding:'16px'}}><div style={{background:'#0F0F0F',border:'1px solid #6A500A',borderRadius:'16px',padding:'18px',maxWidth:'380px',width:'100%',maxHeight:'80vh',overflow:'auto'}}><div style={{fontSize:'14px',fontWeight:800,color:'#F2C94C',marginBottom:'12px'}}>{importPreview.data.length} items found</div>{importPreview.data.slice(0,6).map((item,i)=><div key={i} style={{padding:'6px',background:'#141414',borderRadius:'6px',marginBottom:'3px',fontSize:'11px',color:'#F2C94C'}}>{importPreview.type==='stocks'?item.symbol+' \u00B7 '+item.qty+' shares':item.schemeName}</div>)}<div style={S.row2}><button style={{...S.addBtn,flex:1}} onClick={confirmImport}>Import</button><button style={{...S.addBtn,flex:1,background:'#1A1A1A',color:'#888'}} onClick={()=>setImportPreview(null)}>Cancel</button></div></div></div>}
  
@@ -423,7 +432,7 @@ function WealthApp(){
             <button style={S.refreshBtn} onClick={()=>setShowSettings(!showSettings)}>{'\u2699\uFE0F'}</button>
           </div>
         </div>
-        {showSettings&&<div style={S.card}><div style={S.ct}>Settings</div><button style={{...S.addBtn,background:'#1A1A1A',color:'#F2C94C',marginBottom:'8px'}} onClick={()=>{var p=prompt('New 4-digit PIN:');if(p&&/^\d{4}$/.test(p)){save('w_pin',p);alert('Done');}}}>Change PIN</button><button style={{...S.addBtn,background:'#1A1A1A',color:'#F2C94C',marginBottom:'8px'}} onClick={()=>{save('w_pin',null);alert('Removed');}}>Remove PIN</button><button style={{...S.addBtn,background:'#1A0505',color:'#EF4444'}} onClick={()=>{if(confirm('Delete ALL data?')){localStorage.clear();location.reload();}}}>Reset All</button></div>}
+        {showSettings&&<div style={S.card}><div style={S.ct}>Settings</div><button style={{...S.addBtn,background:'#0D0B00',color:'#22C55E',marginBottom:'8px',border:'1px solid #22C55E33'}} onClick={()=>pushSync()}>\u2191 Push to Cloud</button><button style={{...S.addBtn,background:'#0D0B00',color:'#3B82F6',marginBottom:'8px',border:'1px solid #3B82F633'}} onClick={()=>pullSync()}>\u2193 Pull from Cloud</button><button style={{...S.addBtn,background:'#1A1A1A',color:'#F2C94C',marginBottom:'8px'}} onClick={()=>{var p=prompt('New 4-digit PIN:');if(p&&/^\d{4}$/.test(p)){save('w_pin',p);alert('Done');}}}>Change PIN</button><button style={{...S.addBtn,background:'#1A1A1A',color:'#F2C94C',marginBottom:'8px'}} onClick={()=>{save('w_pin',null);alert('Removed');}}>Remove PIN</button><button style={{...S.addBtn,background:'#1A0505',color:'#EF4444'}} onClick={()=>{if(confirm('Delete ALL data?')){localStorage.clear();location.reload();}}}>Reset All</button></div>}
  
         {alerts.length>0&&<div style={S.card}><div style={S.ct}>Alerts & Reminders</div>{alerts.slice(0,6).map((a,i)=><AlertItem key={i} icon={a.icon} text={a.text} color={a.color}/>)}</div>}
         <NWChart history={nwHistory}/>
@@ -450,32 +459,30 @@ function WealthApp(){
         </div>}
  
         {/* Debt */}
-        <div style={S.card}><div style={S.ct}>Liabilities</div>
-          {debts.map((d,dIdx)=>{const la=d.type==='homeloan'?loanAnalysis(d):null;return<div key={d.id} style={{padding:'8px',background:'#141414',borderRadius:'8px',marginBottom:'4px',cursor:'pointer'}} onClick={()=>setSelectedDebt(d)}>
-            <div style={{display:'flex',justifyContent:'space-between'}}><div><div style={{fontSize:'12px',fontWeight:700,color:'#EF4444'}}>{d.name}</div><div style={{fontSize:'10px',color:'#3A3A3A'}}>{d.type==='homeloan'?'Home Loan':d.type==='family'?'Family':'Personal'}{d.interestRate?' \u00B7 '+d.interestRate+'%':''}{d.emi?' \u00B7 EMI \u20B9'+f(d.emi).toLocaleString('en-IN'):''}</div>{la&&<div style={{height:'3px',background:'#1A1A1A',borderRadius:'2px',marginTop:'4px',width:'100%'}}><div style={{height:'100%',width:la.completion+'%',background:'#F2C94C',borderRadius:'2px'}}/></div>}</div><div style={{textAlign:'right'}}><div style={{fontSize:'14px',fontWeight:800,color:'#EF4444'}}>{fmt(f(d.outstanding))}</div>{la&&<div style={{fontSize:'9px',color:'#6A500A'}}>{la.completion}% paid</div>}</div></div>
-            <IA onEdit={()=>{setEditingDebtId(dIdx);setNewDebt({...d,originalAmount:String(d.originalAmount||''),outstanding:String(d.outstanding),interestRate:String(d.interestRate||''),emi:String(d.emi||''),tenureMonths:String(d.tenureMonths||''),rateResets:d.rateResets||[],prepayments:d.prepayments||[]});setAddingDebt(true);}} onRemove={()=>uDebts(debts.filter((_,i)=>i!==dIdx))}/>
-          </div>})}
-          {selectedDebt&&selectedDebt.type==='homeloan'&&(()=>{const d=selectedDebt,la=loanAnalysis(d);return<div style={{...S.card,border:'1px solid #EF444433'}}>
-            <div style={{display:'flex',justifyContent:'space-between',marginBottom:'8px'}}><div style={{fontSize:'14px',fontWeight:800,color:'#F2C94C'}}>{d.name} \u2014 Analysis</div><button style={rBtn} onClick={()=>setSelectedDebt(null)}>close</button></div>
-            <Dr label="Original Loan" val={fmt(f(d.originalAmount))}/>
-            <Dr label="Outstanding" val={fmt(f(d.outstanding))} color="#EF4444"/>
-            <Dr label="Principal Repaid" val={fmt(la.paidPrincipal)} color="#22C55E"/>
-            <Dr label="Completion" val={la.completion+'%'}/>
-            <Dr label="Remaining Interest" val={fmt(la.totalInterest)} color="#EF4444"/>
-            <Dr label="Projected Payoff" val={fmtDate(la.projPayoff)}/>
-            {la.emiToIncome>0&&<Dr label="EMI-to-Income" val={la.emiToIncome+'%'} color={f(la.emiToIncome)>40?'#EF4444':'#22C55E'}/>}
-            {d.interestRate&&<Dr label="Sec 24 Benefit (\u20B92L)" val={fmt(Math.min(200000,f(d.outstanding)*f(d.interestRate)/100))} color="#22C55E"/>}
-            {(d.rateResets||[]).length>0&&<div style={{marginTop:'8px'}}><div style={{fontSize:'10px',color:'#6A500A',fontWeight:700,marginBottom:'4px'}}>Rate Reset History</div>{d.rateResets.map((r,i)=><div key={i} style={{fontSize:'10px',color:'#888',padding:'3px 0'}}>{fmtDate(r.date)} \u2192 {r.rate}% \u00B7 EMI \u20B9{f(r.emi).toLocaleString('en-IN')}{r.reason?' ('+r.reason+')':''}</div>)}</div>}
-            {(d.prepayments||[]).length>0&&<div style={{marginTop:'8px'}}><div style={{fontSize:'10px',color:'#6A500A',fontWeight:700,marginBottom:'4px'}}>Prepayments</div>{d.prepayments.map((p,i)=><div key={i} style={{fontSize:'10px',color:'#888',padding:'3px 0'}}>{fmtDate(p.date)} \u2192 \u20B9{f(p.amount).toLocaleString('en-IN')} ({p.type})</div>)}<Dr label="Interest Saved (est.)" val={fmt(la.interestSaved)} color="#22C55E"/></div>}
-            <div style={S.row2}>
-              <button style={{...S.addBtn,flex:1,fontSize:'10px',padding:'8px'}} onClick={()=>setAddingReset(true)}>+ Rate Reset</button>
-              <button style={{...S.addBtn,flex:1,fontSize:'10px',padding:'8px'}} onClick={()=>setAddingPrepay(true)}>+ Prepayment</button>
+        <div style={S.card}><div style={S.ct}>Liabilities ({debts.length})</div>
+          {debts.map((d,idx)=>(
+            <div key={idx} style={{padding:'8px',background:'#141414',borderRadius:'8px',marginBottom:'4px'}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <div>
+                  <div style={{fontSize:'12px',fontWeight:700,color:'#EF4444'}}>#{idx} {d.name}</div>
+                  <div style={{fontSize:'10px',color:'#3A3A3A'}}>{d.type==='homeloan'?'Home Loan':d.type==='family'?'Family':'Personal'}{d.interestRate?' \u00B7 '+d.interestRate+'%':''}{d.emi?' \u00B7 EMI \u20B9'+parseFloat(d.emi||0).toLocaleString('en-IN'):''}</div>
+                  {d.type==='homeloan'&&d.originalAmount>0&&<div style={{height:'3px',background:'#1A1A1A',borderRadius:'2px',marginTop:'4px',width:'100%'}}><div style={{height:'100%',width:Math.min(100,((d.originalAmount-d.outstanding)/d.originalAmount*100))+'%',background:'#F2C94C',borderRadius:'2px'}}/></div>}
+                </div>
+                <div style={{textAlign:'right'}}>
+                  <div style={{fontSize:'14px',fontWeight:800,color:'#EF4444'}}>{fmt(f(d.outstanding))}</div>
+                </div>
+              </div>
+              {d.notes&&<div style={{fontSize:'10px',color:'#444',marginTop:'4px'}}>{d.notes}</div>}
+              <div style={{display:'flex',gap:'8px',justifyContent:'flex-end',marginTop:'6px'}}>
+                <button style={{background:'none',border:'none',color:'#6A500A',fontSize:'10px',cursor:'pointer',padding:'2px 6px'}} onClick={()=>{setEditingDebtId(idx);setNewDebt({type:d.type||'homeloan',name:d.name||'',originalAmount:String(d.originalAmount||''),outstanding:String(d.outstanding||''),interestRate:String(d.interestRate||''),emi:String(d.emi||''),tenureMonths:String(d.tenureMonths||''),startDate:d.startDate||'',loanType:d.loanType||'floating',notes:d.notes||'',rateResets:d.rateResets||[],prepayments:d.prepayments||[]});setAddingDebt(true);}}>&#x270F;&#xFE0F;</button>
+                <button style={{background:'none',border:'none',color:'#2A2A2A',fontSize:'10px',cursor:'pointer',padding:'2px 6px'}} onClick={()=>{var c=JSON.parse(JSON.stringify(debts));c.splice(idx,1);uDebts(c);}}>x</button>
+              </div>
             </div>
-            {addingReset&&<div style={{padding:'8px',background:'#0A0A0A',borderRadius:'8px',marginTop:'4px'}}><div style={S.row2}><div style={{flex:1}}><div style={_lblS}>Date</div><input style={_inpS} type="date" value={newReset.date} onChange={e=>setNewReset(p=>({...p,date:e.target.value}))}/></div><div style={{flex:1}}><Inp label="New Rate %" value={newReset.rate} onChange={e=>setNewReset(p=>({...p,rate:e.target.value}))}/></div></div><div style={S.row2}><div style={{flex:1}}><Inp label="New EMI" value={newReset.emi} onChange={e=>setNewReset(p=>({...p,emi:e.target.value}))}/></div><div style={{flex:1}}><Inp label="Reason" value={newReset.reason} onChange={e=>setNewReset(p=>({...p,reason:e.target.value}))} type="text" placeholder="Repo cut"/></div></div><button style={{...S.addBtn,marginTop:0}} onClick={()=>{if(!newReset.date||!newReset.rate)return;const updated=debts.map(x=>x.id===d.id?{...x,rateResets:[...(x.rateResets||[]),{...newReset}],interestRate:newReset.rate,emi:newReset.emi||x.emi}:x);uDebts(updated);setSelectedDebt(updated.find(x=>x.id===d.id));setNewReset({date:'',rate:'',emi:'',reason:''});setAddingReset(false);}}>Save</button></div>}
-            {addingPrepay&&<div style={{padding:'8px',background:'#0A0A0A',borderRadius:'8px',marginTop:'4px'}}><div style={S.row2}><div style={{flex:1}}><div style={_lblS}>Date</div><input style={_inpS} type="date" value={newPrepay.date} onChange={e=>setNewPrepay(p=>({...p,date:e.target.value}))}/></div><div style={{flex:1}}><Inp label="Amount" value={newPrepay.amount} onChange={e=>setNewPrepay(p=>({...p,amount:e.target.value}))}/></div></div><div style={{display:'flex',gap:'6px',marginBottom:'8px'}}><button style={S.chip(newPrepay.type==='tenure')} onClick={()=>setNewPrepay(p=>({...p,type:'tenure'}))}>Reduce Tenure</button><button style={S.chip(newPrepay.type==='emi')} onClick={()=>setNewPrepay(p=>({...p,type:'emi'}))}>Reduce EMI</button></div><button style={{...S.addBtn,marginTop:0}} onClick={()=>{if(!newPrepay.date||!newPrepay.amount)return;const updated=debts.map(x=>x.id===d.id?{...x,prepayments:[...(x.prepayments||[]),{...newPrepay}],outstanding:String(f(x.outstanding)-f(newPrepay.amount))}:x);uDebts(updated);setSelectedDebt(updated.find(x=>x.id===d.id));setNewPrepay({date:'',amount:'',type:'tenure'});setAddingPrepay(false);}}>Save</button></div>}
-          </div>;})()}
+          ))}
+          {totalDebt>0&&<Dr label="Total Debt" val={fmt(totalDebt)} color="#EF4444" bold/>}
           {!addingDebt?<button style={{...S.addBtn,background:'#1A0505',color:'#EF4444',border:'1px solid #EF444433'}} onClick={()=>{setAddingDebt(true);setEditingDebtId(null);setNewDebt({type:'homeloan',name:'',originalAmount:'',outstanding:'',interestRate:'',emi:'',tenureMonths:'',startDate:'',loanType:'floating',notes:'',rateResets:[],prepayments:[]});}}>+ Add Debt</button>
           :<div style={{padding:'10px',background:'#0F0505',borderRadius:'10px',border:'1px solid #EF444422',marginTop:'6px'}}>
+            {editingDebtId!==null&&<div style={{fontSize:'11px',color:'#F2C94C',fontWeight:700,marginBottom:'8px',padding:'6px 8px',background:'#1A1A1A',borderRadius:'6px'}}>Editing #{editingDebtId}: {newDebt.name||'...'}</div>}
             <div style={{display:'flex',gap:'4px',marginBottom:'10px',flexWrap:'wrap'}}>{[['homeloan','Home Loan'],['personal','Personal'],['family','Family']].map(([v,l])=><button key={v} style={S.chip(newDebt.type===v)} onClick={()=>setNewDebt(p=>({...p,type:v}))}>{l}</button>)}</div>
             <Inp label={newDebt.type==='family'?'Borrowed From':'Bank'} value={newDebt.name} onChange={e=>setNewDebt(p=>({...p,name:e.target.value}))} type="text" placeholder={newDebt.type==='family'?'Parents':'SBI'}/>
             <div style={S.row2}><div style={{flex:1}}><Inp label="Outstanding" value={newDebt.outstanding} onChange={e=>setNewDebt(p=>({...p,outstanding:e.target.value}))}/></div><div style={{flex:1}}><Inp label="Original Amount" value={newDebt.originalAmount} onChange={e=>setNewDebt(p=>({...p,originalAmount:e.target.value}))}/></div></div>
@@ -483,11 +490,10 @@ function WealthApp(){
             <div style={S.row2}><div style={{flex:1}}><div style={_lblS}>Start Date</div><input style={_inpS} type="date" value={newDebt.startDate} onChange={e=>setNewDebt(p=>({...p,startDate:e.target.value}))}/></div><div style={{flex:1}}><Inp label="Tenure (months)" value={newDebt.tenureMonths} onChange={e=>setNewDebt(p=>({...p,tenureMonths:e.target.value}))}/></div></div>
             <div style={{display:'flex',gap:'6px',marginBottom:'8px'}}><button style={S.chip(newDebt.loanType==='floating')} onClick={()=>setNewDebt(p=>({...p,loanType:'floating'}))}>Floating</button><button style={S.chip(newDebt.loanType==='fixed')} onClick={()=>setNewDebt(p=>({...p,loanType:'fixed'}))}>Fixed</button></div></div>}
             <Inp label="Notes" value={newDebt.notes} onChange={e=>setNewDebt(p=>({...p,notes:e.target.value}))} type="text" placeholder="Purpose..."/>
-            <div style={S.row2}><button style={{...S.addBtn,flex:1,marginTop:0}} onClick={()=>{if(!newDebt.outstanding||!newDebt.name)return;if(editingDebtId!==null){uDebts(debts.map((d,i)=>i===editingDebtId?{...d,...newDebt,outstanding:f(newDebt.outstanding),originalAmount:f(newDebt.originalAmount),interestRate:f(newDebt.interestRate),emi:f(newDebt.emi)}:d));}else{uDebts([...debts,{id:Date.now()+Math.random(),...newDebt,outstanding:f(newDebt.outstanding),originalAmount:f(newDebt.originalAmount),interestRate:f(newDebt.interestRate),emi:f(newDebt.emi)}]);}setAddingDebt(false);setEditingDebtId(null);}}>{editingDebtId!==null?'Update':'Save'}</button><button style={{...S.addBtn,flex:1,marginTop:0,background:'#1A1A1A',color:'#888'}} onClick={()=>{setAddingDebt(false);setEditingDebtId(null);}}>Cancel</button></div>
+            <div style={S.row2}><button style={{...S.addBtn,flex:1,marginTop:0}} onClick={()=>{if(!newDebt.outstanding||!newDebt.name)return;if(editingDebtId!==null){var c=JSON.parse(JSON.stringify(debts));c[editingDebtId]={...c[editingDebtId],type:newDebt.type,name:newDebt.name,outstanding:f(newDebt.outstanding),originalAmount:f(newDebt.originalAmount),interestRate:f(newDebt.interestRate),emi:f(newDebt.emi),tenureMonths:newDebt.tenureMonths||'',startDate:newDebt.startDate||'',loanType:newDebt.loanType||'floating',notes:newDebt.notes||''};uDebts(c);}else{uDebts([...debts,{id:Date.now()+Math.random(),type:newDebt.type,name:newDebt.name,outstanding:f(newDebt.outstanding),originalAmount:f(newDebt.originalAmount),interestRate:f(newDebt.interestRate),emi:f(newDebt.emi),tenureMonths:newDebt.tenureMonths||'',startDate:newDebt.startDate||'',loanType:newDebt.loanType||'floating',notes:newDebt.notes||'',rateResets:[],prepayments:[]}]);}setAddingDebt(false);setEditingDebtId(null);}}>{editingDebtId!==null?'Update':'Save'}</button><button style={{...S.addBtn,flex:1,marginTop:0,background:'#1A1A1A',color:'#888'}} onClick={()=>{setAddingDebt(false);setEditingDebtId(null);}}>Cancel</button></div>
           </div>}
         </div>
- 
-        {/* Income History */}
+                {/* Income History */}
         <div style={S.card}><div style={S.ct}>Income History</div>
           <div style={S.row2}><button style={S.chip(taxProfile.regime==='new')} onClick={()=>uTax({...taxProfile,regime:'new'})}>New Regime</button><button style={S.chip(taxProfile.regime==='old')} onClick={()=>uTax({...taxProfile,regime:'old'})}>Old Regime</button></div>
           {(taxProfile.entries||[]).slice().reverse().map(en=><div key={en.id} style={{display:'flex',justifyContent:'space-between',padding:'6px 8px',background:'#141414',borderRadius:'6px',marginBottom:'4px'}}><div><span style={{fontSize:'12px',color:'#F2C94C',fontWeight:700}}>{fmt(en.income)}</span><span style={{fontSize:'10px',color:'#3A3A3A',marginLeft:'8px'}}>{en.month} {en.year}</span></div><div><button style={eBtn} onClick={()=>{setEditingIncomeId(en.id);setNewIncome({month:en.month,year:String(en.year),income:String(en.income)});setAddingIncome(true);}}>{'\u270F\uFE0F'}</button><button style={rBtn} onClick={()=>uTax({...taxProfile,entries:taxProfile.entries.filter(x=>x.id!==en.id)})}>x</button></div></div>)}
@@ -732,7 +738,7 @@ function WealthApp(){
         {insurance.length>0&&<div style={S.card}><div style={S.ct}>80D \u2014 Health Insurance</div><Dr label="Premium Paid" val={fmt(totalInsurancePremium)}/><Dr label="Limit (self/family)" val={'\u20B925,000'}/><Dr label="Used" val={fmt(Math.min(25000,totalInsurancePremium))} color="#22C55E"/><Dr label="Remaining" val={fmt(Math.max(0,25000-totalInsurancePremium))} color={totalInsurancePremium>=25000?'#888':'#F2C94C'}/></div>}
  
         {/* Section 24 */}
-        {debts.some(d=>d.type==='homeloan')&&<div style={S.card}><div style={S.ct}>Section 24 \u2014 Home Loan Interest</div>{debts.filter(d=>d.type==='homeloan').map(d=>{var annualInt=f(d.outstanding)*f(d.interestRate)/100;return<div key={d.id}><Dr label={d.name} val={fmt(annualInt)+'/yr'}/><Dr label="Deductible (self-occ)" val={fmt(Math.min(200000,annualInt))} color="#22C55E"/></div>})}</div>}
+        {debts.some(d=>d.type==='homeloan')&&<div style={S.card}><div style={S.ct}>Section 24 \u2014 Home Loan Interest</div>{debts.filter(d=>d.type==='homeloan').map(d=>{var annualInt=f(d.outstanding)*f(d.interestRate)/100;return<div key={d.id+d.name}><Dr label={d.name} val={fmt(annualInt)+'/yr'}/><Dr label="Deductible (self-occ)" val={fmt(Math.min(200000,annualInt))} color="#22C55E"/></div>})}</div>}
  
         {/* Capital Gains Register */}
         <div style={S.card}><div style={S.ct}>Capital Gains Register</div>
@@ -757,3 +763,4 @@ ReactDOM.createRoot(document.getElementById('root')).render(<WealthApp/>);
 </script>
 </body>
 </html>
+ 
