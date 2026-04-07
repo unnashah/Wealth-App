@@ -121,7 +121,7 @@ function InfoBox({color='#6A500A',bg='#0D0B00',children}){return<div style={{fon
 function AlertItem({icon,text,color='#F2C94C'}){return<div style={{display:'flex',gap:'8px',padding:'8px',background:'#141414',borderRadius:'8px',marginBottom:'4px',alignItems:'center'}}><span style={{fontSize:'14px'}}>{icon}</span><span style={{fontSize:'11px',color,lineHeight:1.4}}>{text}</span></div>;}
  
 function WealthApp(){
-  const [locked,setLocked]=useState(()=>!!load('w_pin',null));
+  const [locked,setLocked]=useState(true);
   const [tab,setTab]=useState('home');
   const [subTab,setSubTab]=useState('overview');
   const [refreshing,setRefreshing]=useState(false);
