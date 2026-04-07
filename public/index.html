@@ -34,7 +34,6 @@ const calcFD=(p,r,days,freq=4)=>f(p)*Math.pow(1+f(r)/100/freq,freq*days/365);
 const todayStr=()=>new Date().toISOString().split('T')[0];
 const load=(key,fb)=>{try{const v=localStorage.getItem(key);return v?JSON.parse(v):fb;}catch{return fb;}};
 const save=(key,val)=>{try{localStorage.setItem(key,JSON.stringify(val));}catch{}};
-const saveAndSync=(key,val)=>{save(key,val);if(typeof pushSync==='function')try{pushSync();}catch{}};
 const addYears=(d,y)=>{const dt=new Date(d);dt.setFullYear(dt.getFullYear()+y);return dt.toISOString().split('T')[0];};
 const addMonths=(d,m)=>{const dt=new Date(d);dt.setMonth(dt.getMonth()+m);return dt.toISOString().split('T')[0];};
 const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -255,26 +254,26 @@ function WealthApp(){
   // Save helpers
   const saveTimers=useRef({});
   const dSave=(key,val)=>{clearTimeout(saveTimers.current[key]);saveTimers.current[key]=setTimeout(()=>save(key,val),500);};
-  const uPrices=p=>{setPrices(p);saveAndSync('w_prices',p);};
-  const uMetalItems=v=>{setMetalItems(v);saveAndSync('w_metalItems',v);};
-  const uSgb=v=>{setSgb(v);dSave('w_sgb',v);pushSync&&pushSync();};
+  const uPrices=p=>{setPrices(p);save('w_prices',p);pushSync();};
+  const uMetalItems=v=>{setMetalItems(v);save('w_metalItems',v);pushSync();};
+  const uSgb=v=>{setSgb(v);dSave('w_sgb',v);pushSync();};
   const uPpf=v=>{setPpf(v);dSave('w_ppf',v);};
   const uNps=v=>{setNps(v);dSave('w_nps',v);};
   const uEpf=v=>{setEpf(v);dSave('w_epf',v);};
-  const uTax=v=>{setTaxProfile(v);saveAndSync('w_tax',v);};
-  const uCG=v=>{setCapitalGains(v);saveAndSync('w_cg',v);};
-  const uCrypto=v=>{setCrypto(v);saveAndSync('w_crypto',v);};
-  const uMf=v=>{setMfHoldings(v);saveAndSync('w_mf',v);};
-  const uSips=v=>{setSips(v);saveAndSync('w_sips',v);};
-  const uStocks=v=>{setStocks(v);saveAndSync('w_stocks',v);};
-  const uFds=v=>{setFds(v);saveAndSync('w_fds',v);};
-  const uDebts=v=>{setDebts(v);saveAndSync('w_debts',v);};
-  const uProps=v=>{setProperties(v);saveAndSync('w_props',v);};
-  const uIns=v=>{setInsurance(v);saveAndSync('w_ins',v);};
-  const uGoals=v=>{setGoals(v);saveAndSync('w_goals',v);};
-  const uNominees=v=>{setNominees(v);saveAndSync('w_nominees',v);};
-  const uDocs=v=>{setDocs(v);saveAndSync('w_docs',v);};
-  const uExpenses=v=>{setMonthlyExpenses(v);saveAndSync('w_expenses',v);};
+  const uTax=v=>{setTaxProfile(v);save('w_tax',v);pushSync();};
+  const uCG=v=>{setCapitalGains(v);save('w_cg',v);pushSync();};
+  const uCrypto=v=>{setCrypto(v);save('w_crypto',v);pushSync();};
+  const uMf=v=>{setMfHoldings(v);save('w_mf',v);pushSync();};
+  const uSips=v=>{setSips(v);save('w_sips',v);pushSync();};
+  const uStocks=v=>{setStocks(v);save('w_stocks',v);pushSync();};
+  const uFds=v=>{setFds(v);save('w_fds',v);pushSync();};
+  const uDebts=v=>{setDebts(v);save('w_debts',v);pushSync();};
+  const uProps=v=>{setProperties(v);save('w_props',v);pushSync();};
+  const uIns=v=>{setInsurance(v);save('w_ins',v);pushSync();};
+  const uGoals=v=>{setGoals(v);save('w_goals',v);pushSync();};
+  const uNominees=v=>{setNominees(v);save('w_nominees',v);pushSync();};
+  const uDocs=v=>{setDocs(v);save('w_docs',v);pushSync();};
+  const uExpenses=v=>{setMonthlyExpenses(v);save('w_expenses',v);pushSync();};
  
   // APIs
   const fetchNAV=async code=>{if(!code)return null;try{const r=await fetch('https://api.mfapi.in/mf/'+code+'/latest');const d=await r.json();if(d&&d.data&&d.data[0])return{nav:parseFloat(d.data[0].nav),date:d.data[0].date};}catch{}return null;};
@@ -763,4 +762,5 @@ ReactDOM.createRoot(document.getElementById('root')).render(<WealthApp/>);
 </script>
 </body>
 </html>
+ 
  
