@@ -135,11 +135,14 @@ function WealthApp(){
   // Metal Items
   const [metalItems,setMetalItems]=useState(()=>load('w_metalItems',[]));
   const [addingMetalCat,setAddingMetalCat]=useState(null);
-  const [newMetalItem,setNewMetalItem]=useState({desc:'',weight:'',value:'',cost:'',purchaseDate:''});
+  const [newMetalItem,setNewMetalItem]=useState({desc:'',weight:'',value:'',cost:'',purchaseDate:'',category:'gold'});
   const [editingMetalId,setEditingMetalId]=useState(null);
  
   // SGB
-  const [sgb,setSgb]=useState(()=>load('w_sgb',{grams:'',purchasePrice:'',purchaseType:'primary',purchaseDate:''}));
+  const [sgbs,setSgbs]=useState(()=>load('w_sgbs',load('w_sgb',null)?[load('w_sgb')]:[])); // migrate old single sgb
+  const [addingSgb,setAddingSgb]=useState(false);
+  const [editingSgbId,setEditingSgbId]=useState(null);
+  const [newSgb,setNewSgb]=useState({name:'',grams:'',purchasePrice:'',purchaseType:'primary',purchaseDate:'',interestRate:'2.5',bankName:''});
  
   // Govt
   const [ppf,setPpf]=useState(()=>load('w_ppf',{balance:'',monthlyContrib:'',startDate:'',interestRate:'7.1'}));
@@ -262,7 +265,7 @@ function WealthApp(){
   const dSave=(key,val)=>{clearTimeout(saveTimers.current[key]);saveTimers.current[key]=setTimeout(()=>save(key,val),500);};
   const uPrices=p=>{setPrices(p);save('w_prices',p);pushSync();};
   const uMetalItems=v=>{setMetalItems(v);save('w_metalItems',v);pushSync();};
-  const uSgb=v=>{setSgb(v);dSave('w_sgb',v);pushSync();};
+  const uSgbs=v=>{setSgbs(v);dSave('w_sgbs',v);pushSync();};
   const uPpf=v=>{setPpf(v);dSave('w_ppf',v);pushSync();};
   const uNps=v=>{setNps(v);dSave('w_nps',v);pushSync();};
   const uEpf=v=>{setEpf(v);dSave('w_epf',v);pushSync();};
@@ -296,15 +299,15 @@ function WealthApp(){
   const confirmImport=async()=>{if(!importPreview)return;if(importPreview.type==='stocks'){uStocks(await fetchSP([...stocks,...importPreview.data]));}else{uMf([...mfHoldings,...importPreview.data]);}setImportPreview(null);};
  
   // Computed
-  const catRate=cat=>cat==='gold24k'?prices.gold24k:cat==='gold22k'?prices.gold22k:cat==='gold18k'?prices.gold18k:cat==='goldJewellery'?prices.gold22k:cat==='silver'||cat==='silverArticles'?prices.silver:0;
+  const catRate=cat=>cat==='gold'?prices.gold24k:cat==='goldJewellery'?prices.gold22k:cat==='silver'?prices.silver:0;
   const catTotal=cat=>metalItems.filter(i=>i.category===cat).reduce((s,i)=>cat==='diamond'?s+f(i.value):s+f(i.weight)*(catRate(cat)||0),0);
   const catWeight=cat=>metalItems.filter(i=>i.category===cat).reduce((s,i)=>s+f(i.weight),0);
   const catCost=cat=>metalItems.filter(i=>i.category===cat).reduce((s,i)=>s+f(i.cost),0);
   const metalVal=()=>metalItems.reduce((s,i)=>i.category==='diamond'?s+f(i.value):s+f(i.weight)*(catRate(i.category)||0),0);
-  const sgbVal=()=>f(sgb.grams)*(prices.gold24k||0);
-  const sgbMatDate=sgb.purchaseDate?addYears(sgb.purchaseDate,8):'';
-  const sgbYrs=sgb.purchaseDate?yearsBetween(sgb.purchaseDate,todayStr()):0;
-  const sgbInterestEarned=f(sgb.purchasePrice)*f(sgb.grams)*f(sgb.interestRate||2.5)/100*sgbYrs;
+  const sgbVal=()=>sgbs.reduce((s,b)=>s+f(b.grams)*(prices.gold24k||0),0);
+  
+  
+  
   const cryptoVal=crypto.reduce((s,c)=>s+f(c.qty)*(c.priceINR||0),0);
   const cryptoCost=crypto.reduce((s,c)=>s+f(c.qty)*f(c.buyPrice),0);
   const mfVal=mfHoldings.reduce((s,h)=>s+h.units*(h.currentNav||0),0);
@@ -390,7 +393,7 @@ function WealthApp(){
   useEffect(()=>{if(!locked&&!didAutoRefresh.current){didAutoRefresh.current=true;pullSync().then(()=>refreshAll()).then(r=>{var nw=totalNW();if(nw>0)saveSnapshot(nw);});}},[locked]);
  
   // CSV Export
-  const exportCSV=()=>{var rows=[['Category','Item','Qty','Cost','Value','Nominee','Ref No']];metalItems.forEach(i=>rows.push(['Metal',i.category+(i.desc?' - '+i.desc:''),i.category==='diamond'?'':i.weight+'g',i.cost||'',i.category==='diamond'?String(f(i.value)):String(f(i.weight)*(catRate(i.category)||0)),'','']));if(sgb.grams)rows.push(['SGB','Gold Bond',sgb.grams+'g',String(f(sgb.purchasePrice)*f(sgb.grams)),String(sgbVal()),'','']);properties.forEach(p=>rows.push(['Property',p.name,'',String(p.purchasePrice),String(p.currentValue),'','']));insurance.forEach(i=>rows.push(['Insurance',i.insurer+' '+i.type,'',String(i.premium),String(i.sumInsured),'',i.policyNo||'']));if(ppf.balance)rows.push(['PPF','','','',ppf.balance,'','']);if(nps.balance)rows.push(['NPS','','','',nps.balance,'','']);if(epf.balance)rows.push(['EPF','','','',epf.balance,'','']);crypto.forEach(c=>rows.push(['Crypto',c.symbol,String(c.qty),String(f(c.qty)*f(c.buyPrice)),String(f(c.qty)*(c.priceINR||0)),'','']));mfHoldings.forEach(h=>rows.push(['MF',h.schemeName,String(h.units),String(h.units*h.avgNav),String(h.units*(h.currentNav||0)),'','']));stocks.forEach(h=>rows.push(['Stock',h.symbol,String(h.qty),String(h.qty*h.avgPrice),String(h.qty*(h.currentPrice||0)),'','']));fds.forEach(fd=>rows.push(['FD',fd.bank,fd.rate+'%',String(fd.principal),String(calcFD(fd.principal,fd.rate,daysBetween(fd.startDate,fd.maturityDate),fd.compounding)),'','']));debts.forEach(d=>rows.push(['Debt',d.name,d.type,'','-'+d.outstanding,'','']));rows.push([]);rows.push(['TOTAL ASSETS','','','',String(totalAssets),'','']);rows.push(['TOTAL DEBT','','','','-'+String(totalDebt),'','']);rows.push(['NET WORTH','','','',String(totalNW()),'','']);var csv=rows.map(r=>r.map(c=>'"'+String(c||'').replace(/"/g,'""')+'"').join(',')).join('\n');var blob=new Blob([csv],{type:'text/csv'});var u=URL.createObjectURL(blob);var a=document.createElement('a');a.href=u;a.download='wealth_'+todayStr()+'.csv';a.click();URL.revokeObjectURL(u);};
+  const exportCSV=()=>{var rows=[['Category','Item','Qty','Cost','Value','Nominee','Ref No']];metalItems.forEach(i=>rows.push(['Metal',i.category+(i.desc?' - '+i.desc:''),i.category==='diamond'?'':i.weight+'g',i.cost||'',i.category==='diamond'?String(f(i.value)):String(f(i.weight)*(catRate(i.category)||0)),'','']));sgbs.forEach(b=>rows.push(['SGB',b.name||'Gold Bond',b.grams+'g',String(f(b.purchasePrice)*f(b.grams)),String(f(b.grams)*(prices.gold24k||0)),'','']));properties.forEach(p=>rows.push(['Property',p.name,'',String(p.purchasePrice),String(p.currentValue),'','']));insurance.forEach(i=>rows.push(['Insurance',i.insurer+' '+i.type,'',String(i.premium),String(i.sumInsured),'',i.policyNo||'']));if(ppf.balance)rows.push(['PPF','','','',ppf.balance,'','']);if(nps.balance)rows.push(['NPS','','','',nps.balance,'','']);if(epf.balance)rows.push(['EPF','','','',epf.balance,'','']);crypto.forEach(c=>rows.push(['Crypto',c.symbol,String(c.qty),String(f(c.qty)*f(c.buyPrice)),String(f(c.qty)*(c.priceINR||0)),'','']));mfHoldings.forEach(h=>rows.push(['MF',h.schemeName,String(h.units),String(h.units*h.avgNav),String(h.units*(h.currentNav||0)),'','']));stocks.forEach(h=>rows.push(['Stock',h.symbol,String(h.qty),String(h.qty*h.avgPrice),String(h.qty*(h.currentPrice||0)),'','']));fds.forEach(fd=>rows.push(['FD',fd.bank,fd.rate+'%',String(fd.principal),String(calcFD(fd.principal,fd.rate,daysBetween(fd.startDate,fd.maturityDate),fd.compounding)),'','']));debts.forEach(d=>rows.push(['Debt',d.name,d.type,'','-'+d.outstanding,'','']));rows.push([]);rows.push(['TOTAL ASSETS','','','',String(totalAssets),'','']);rows.push(['TOTAL DEBT','','','','-'+String(totalDebt),'','']);rows.push(['NET WORTH','','','',String(totalNW()),'','']);var csv=rows.map(r=>r.map(c=>'"'+String(c||'').replace(/"/g,'""')+'"').join(',')).join('\n');var blob=new Blob([csv],{type:'text/csv'});var u=URL.createObjectURL(blob);var a=document.createElement('a');a.href=u;a.download='wealth_'+todayStr()+'.csv';a.click();URL.revokeObjectURL(u);};
  
   // Add helpers
   const addMfFn=async()=>{if(!newMf.schemeCode||!newMf.units)return;const nav=await fetchNAV(newMf.schemeCode);if(editingMfId){uMf(mfHoldings.map(h=>h.id===editingMfId?{...h,schemeCode:newMf.schemeCode,schemeName:newMf.schemeName,units:f(newMf.units),avgNav:f(newMf.avgNav),type:newMf.type,currentNav:nav?nav.nav:h.currentNav}:h));setEditingMfId(null);}else{uMf([...mfHoldings,{id:Date.now()+Math.random(),schemeCode:newMf.schemeCode,schemeName:newMf.schemeName,units:f(newMf.units),avgNav:f(newMf.avgNav),type:newMf.type,purchaseDate:newMf.purchaseDate||'',currentNav:nav?nav.nav:null,navDate:nav?nav.date:null}]);}setNewMf({schemeCode:'',schemeName:'',units:'',avgNav:'',type:'equity'});setMfSearch('');setMfResults([]);setAddingMf(false);};
@@ -477,21 +480,20 @@ function WealthApp(){
         <div style={S.card}><div style={S.ct}>INVESTMENT DASHBOARD</div>
           {(()=>{
             var sections=[];
-            var stInv=stocks.reduce((s,h)=>s+h.qty*h.avgPrice,0),stCur=stocks.reduce((s,h)=>s+h.qty*(h.currentPrice||h.avgPrice),0);
-            if(stInv>0)sections.push({name:'Stocks',inv:stInv,cur:stCur});
             var mfInv=mfHoldings.reduce((s,h)=>s+h.units*h.avgNav,0),mfCur=mfHoldings.reduce((s,h)=>s+h.units*(h.currentNav||h.avgNav),0);
             if(mfInv>0)sections.push({name:'Mutual Funds',inv:mfInv,cur:mfCur});
+            var stInv=stocks.reduce((s,h)=>s+h.qty*h.avgPrice,0),stCur=stocks.reduce((s,h)=>s+h.qty*(h.currentPrice||h.avgPrice),0);
+            if(stInv>0)sections.push({name:'Stocks',inv:stInv,cur:stCur});
             var crInv=crypto.reduce((s,c)=>s+(c.isSimple?f(c.investedTotal):c.qty*f(c.buyPrice)),0),crCur=crypto.reduce((s,c)=>s+(c.isSimple?f(c.currentValue||c.investedTotal):c.qty*(c.priceINR||f(c.buyPrice))),0);
             if(crInv>0)sections.push({name:'Crypto',inv:crInv,cur:crCur});
-            if(f(ppf.balance)>0)sections.push({name:'PPF',inv:f(ppf.balance),cur:f(ppf.balance)});
-            if(f(nps.balance)>0)sections.push({name:'NPS',inv:f(nps.balance),cur:f(nps.balance)});
-            if(f(epf.balance)>0)sections.push({name:'EPF',inv:f(epf.balance),cur:f(epf.balance)});
-            if(sgbVal()>0)sections.push({name:'SGB',inv:f(sgb.purchasePrice)*f(sgb.grams),cur:sgbVal()});
+            if(metalVal()>0){var mCost=metalItems.reduce((s,i)=>s+f(i.cost),0);sections.push({name:'Metals',inv:mCost||metalVal(),cur:metalVal()});}
             var fdTotP=fds.reduce((s,fd)=>s+f(fd.principal),0);
             if(fdTotP>0)sections.push({name:'FDs',inv:fdTotP,cur:fdTotP});
-            if(metalVal()>0){var mCost=metalItems.reduce((s,i)=>s+f(i.cost),0);sections.push({name:'Metals',inv:mCost||metalVal(),cur:metalVal()});}
-            if(propVal>0){var pCost=properties.reduce((s,p)=>s+f(p.purchasePrice),0);sections.push({name:'Property',inv:pCost,cur:propVal});}
-            var grandInv=sections.reduce((s,x)=>s+x.inv,0),grandCur=sections.reduce((s,x)=>s+x.cur,0),gPnl=pnl(grandInv,grandCur);
+            if(f(ppf.balance)>0)sections.push({name:'PPF',inv:f(ppf.balance),cur:f(ppf.balance)});
+            var longTerm=[];
+            if(f(epf.balance)>0)longTerm.push({name:'EPF',inv:f(epf.balance),cur:f(epf.balance)});
+            if(f(nps.balance)>0)longTerm.push({name:'NPS',inv:f(nps.balance),cur:f(nps.balance)});
+            var grandInv=sections.reduce((s,x)=>s+x.inv,0)+longTerm.reduce((s,x)=>s+x.inv,0),grandCur=sections.reduce((s,x)=>s+x.cur,0)+longTerm.reduce((s,x)=>s+x.cur,0),gPnl=pnl(grandInv,grandCur);
             if(grandInv===0)return<div style={{fontSize:'11px',color:'#9CA3AF'}}>Add investments to see dashboard</div>;
             return<div>
               <div style={{display:'flex',justifyContent:'space-between',marginBottom:'10px',padding:'10px',background:'#FFFBEB',borderRadius:'8px',border:'1px solid #D4A01733'}}>
@@ -505,6 +507,12 @@ function WealthApp(){
                 <div style={{textAlign:'center',flex:1}}><div style={{fontSize:'10px',color:'#9CA3AF'}}>Current</div><div style={{fontSize:'11px',fontWeight:600,color:'#B8860B'}}>{fmt(sec.cur)}</div></div>
                 <div style={{textAlign:'right',flex:1}}><div style={{fontSize:'10px',color:'#9CA3AF'}}>P&L</div><div style={{fontSize:'11px',fontWeight:700,color:g.amt>=0?'#22C55E':'#EF4444'}}>{g.amt>=0?'+':''}{fmt(g.amt)}</div><div style={{fontSize:'9px',color:g.amt>=0?'#22C55E':'#EF4444'}}>{g.pct>=0?'+':''}{g.pct.toFixed(1)}%</div></div>
               </div>;})}
+              {longTerm.length>0&&<div><div style={{fontSize:'9px',color:'#92710A',letterSpacing:'1px',marginTop:'10px',marginBottom:'6px',borderTop:'1px solid #E5E7EB',paddingTop:'8px'}}>LONG TERM (locked until retirement)</div>
+              {longTerm.map(sec=>{var g=pnl(sec.inv,sec.cur);var pctOfTotal=grandCur>0?(sec.cur/grandCur*100).toFixed(0):0;return<div key={sec.name} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px',background:'#F3F4F6',borderRadius:'6px',marginBottom:'4px'}}>
+                <div style={{flex:1}}><div style={{fontSize:'11px',fontWeight:700,color:'#1F2937'}}>{sec.name}</div><div style={{fontSize:'9px',color:'#9CA3AF'}}>{pctOfTotal}% of portfolio</div></div>
+                <div style={{textAlign:'center',flex:1}}><div style={{fontSize:'10px',color:'#9CA3AF'}}>Balance</div><div style={{fontSize:'11px',fontWeight:600,color:'#B8860B'}}>{fmt(sec.cur)}</div></div>
+                <div style={{textAlign:'right',flex:1}}><div style={{fontSize:'9px',color:'#9CA3AF'}}>Cannot withdraw</div></div>
+              </div>;})}</div>}
             </div>;
           })()}
         </div>
@@ -632,10 +640,10 @@ function WealthApp(){
         {subTab==='metals'&&<div>
           <div style={S.cardG}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'10px'}}><div style={S.ct}>Prices/gram</div>{!editingPrices?<button style={S.refreshBtn} onClick={()=>{setTempPrices({gold24k:prices.gold24k,gold22k:prices.gold22k,gold18k:prices.gold18k,silver:prices.silver});setEditingPrices(true);}}>Update</button>:<button style={{padding:'7px 14px',background:'#B8860B',color:'#FFFFFF',border:'none',borderRadius:'8px',fontSize:'11px',fontWeight:800,cursor:'pointer'}} onClick={()=>{uPrices({...tempPrices,updated:new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})+' '+new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short'})});setEditingPrices(false);}}>Save</button>}</div>
             {editingPrices?<div>{[['gold24k','Gold 24K'],['gold22k','Gold 22K'],['gold18k','Gold 18K'],['silver','Silver']].map(p=><Inp key={p[0]} label={p[1]} value={tempPrices[p[0]]||''} onChange={e=>setTempPrices(prev=>({...prev,[p[0]]:parseFloat(e.target.value)||0}))}/>)}</div>
-            :<div>{[['24K',prices.gold24k],['22K',prices.gold22k],['18K',prices.gold18k],['Silver',prices.silver]].map(p=><Dr key={p[0]} label={p[0]} val={'\u20B9'+(p[1]||0).toLocaleString('en-IN')+'/g'}/>)}{prices.updated&&<div style={{fontSize:'9px',color:'#D1D5DB',marginTop:'6px'}}>{prices.updated}</div>}</div>}
+            :<div>{[['Gold (24K)',prices.gold24k],['Gold (22K)',prices.gold22k],['Silver',prices.silver]].map(p=><Dr key={p[0]} label={p[0]} val={'\u20B9'+(p[1]||0).toLocaleString('en-IN')+'/g'}/>)}{prices.updated&&<div style={{fontSize:'9px',color:'#D1D5DB',marginTop:'6px'}}>{prices.updated}</div>}</div>}
           </div>
  
-          {[['gold24k','Gold 24K'],['gold22k','Gold 22K'],['gold18k','Gold 18K'],['goldJewellery','Gold Jewellery'],['silver','Silver'],['silverArticles','Silver Articles'],['diamond','Diamond']].map(([cat,label])=>{
+          {[['gold','Gold'],['goldJewellery','Gold Jewellery'],['silver','Silver'],['diamond','Diamond']].map(([cat,label])=>{
             var items=metalItems.filter(i=>i.category===cat),isDiamond=cat==='diamond',total=catTotal(cat),weight=catWeight(cat),cost=catCost(cat);
             return<div key={cat} style={S.card}>
               <div style={{display:'flex',justifyContent:'space-between',marginBottom:'6px'}}><div style={S.ct}>{label}</div>{total>0&&<span style={{fontSize:'13px',fontWeight:700,color:'#B8860B'}}>{fmt(total)}</span>}</div>
@@ -837,21 +845,20 @@ function WealthApp(){
           <div style={S.card}><div style={S.ct}>INVESTMENT DASHBOARD</div>
           {(()=>{
             var sections=[];
-            var stInv=stocks.reduce((s,h)=>s+h.qty*h.avgPrice,0),stCur=stocks.reduce((s,h)=>s+h.qty*(h.currentPrice||h.avgPrice),0);
-            if(stInv>0)sections.push({name:'Stocks',inv:stInv,cur:stCur});
             var mfInv=mfHoldings.reduce((s,h)=>s+h.units*h.avgNav,0),mfCur=mfHoldings.reduce((s,h)=>s+h.units*(h.currentNav||h.avgNav),0);
             if(mfInv>0)sections.push({name:'Mutual Funds',inv:mfInv,cur:mfCur});
+            var stInv=stocks.reduce((s,h)=>s+h.qty*h.avgPrice,0),stCur=stocks.reduce((s,h)=>s+h.qty*(h.currentPrice||h.avgPrice),0);
+            if(stInv>0)sections.push({name:'Stocks',inv:stInv,cur:stCur});
             var crInv=crypto.reduce((s,c)=>s+(c.isSimple?f(c.investedTotal):c.qty*f(c.buyPrice)),0),crCur=crypto.reduce((s,c)=>s+(c.isSimple?f(c.currentValue||c.investedTotal):c.qty*(c.priceINR||f(c.buyPrice))),0);
             if(crInv>0)sections.push({name:'Crypto',inv:crInv,cur:crCur});
-            if(f(ppf.balance)>0)sections.push({name:'PPF',inv:f(ppf.balance),cur:f(ppf.balance)});
-            if(f(nps.balance)>0)sections.push({name:'NPS',inv:f(nps.balance),cur:f(nps.balance)});
-            if(f(epf.balance)>0)sections.push({name:'EPF',inv:f(epf.balance),cur:f(epf.balance)});
-            if(sgbVal()>0)sections.push({name:'SGB',inv:f(sgb.purchasePrice)*f(sgb.grams),cur:sgbVal()});
+            if(metalVal()>0){var mCost=metalItems.reduce((s,i)=>s+f(i.cost),0);sections.push({name:'Metals',inv:mCost||metalVal(),cur:metalVal()});}
             var fdTotP=fds.reduce((s,fd)=>s+f(fd.principal),0);
             if(fdTotP>0)sections.push({name:'FDs',inv:fdTotP,cur:fdTotP});
-            if(metalVal()>0){var mCost=metalItems.reduce((s,i)=>s+f(i.cost),0);sections.push({name:'Metals',inv:mCost||metalVal(),cur:metalVal()});}
-            if(propVal>0){var pCost=properties.reduce((s,p)=>s+f(p.purchasePrice),0);sections.push({name:'Property',inv:pCost,cur:propVal});}
-            var grandInv=sections.reduce((s,x)=>s+x.inv,0),grandCur=sections.reduce((s,x)=>s+x.cur,0),gPnl=pnl(grandInv,grandCur);
+            if(f(ppf.balance)>0)sections.push({name:'PPF',inv:f(ppf.balance),cur:f(ppf.balance)});
+            var longTerm=[];
+            if(f(epf.balance)>0)longTerm.push({name:'EPF',inv:f(epf.balance),cur:f(epf.balance)});
+            if(f(nps.balance)>0)longTerm.push({name:'NPS',inv:f(nps.balance),cur:f(nps.balance)});
+            var grandInv=sections.reduce((s,x)=>s+x.inv,0)+longTerm.reduce((s,x)=>s+x.inv,0),grandCur=sections.reduce((s,x)=>s+x.cur,0)+longTerm.reduce((s,x)=>s+x.cur,0),gPnl=pnl(grandInv,grandCur);
             if(grandInv===0)return<div style={{fontSize:'11px',color:'#9CA3AF'}}>Add investments to see dashboard</div>;
             return<div>
               <div style={{display:'flex',justifyContent:'space-between',marginBottom:'10px',padding:'10px',background:'#FFFBEB',borderRadius:'8px',border:'1px solid #D4A01733'}}>
@@ -865,6 +872,12 @@ function WealthApp(){
                 <div style={{textAlign:'center',flex:1}}><div style={{fontSize:'10px',color:'#9CA3AF'}}>Current</div><div style={{fontSize:'11px',fontWeight:600,color:'#B8860B'}}>{fmt(sec.cur)}</div></div>
                 <div style={{textAlign:'right',flex:1}}><div style={{fontSize:'10px',color:'#9CA3AF'}}>P&L</div><div style={{fontSize:'11px',fontWeight:700,color:g.amt>=0?'#22C55E':'#EF4444'}}>{g.amt>=0?'+':''}{fmt(g.amt)}</div><div style={{fontSize:'9px',color:g.amt>=0?'#22C55E':'#EF4444'}}>{g.pct>=0?'+':''}{g.pct.toFixed(1)}%</div></div>
               </div>;})}
+              {longTerm.length>0&&<div><div style={{fontSize:'9px',color:'#92710A',letterSpacing:'1px',marginTop:'10px',marginBottom:'6px',borderTop:'1px solid #E5E7EB',paddingTop:'8px'}}>LONG TERM (locked until retirement)</div>
+              {longTerm.map(sec=>{var g=pnl(sec.inv,sec.cur);var pctOfTotal=grandCur>0?(sec.cur/grandCur*100).toFixed(0):0;return<div key={sec.name} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px',background:'#F3F4F6',borderRadius:'6px',marginBottom:'4px'}}>
+                <div style={{flex:1}}><div style={{fontSize:'11px',fontWeight:700,color:'#1F2937'}}>{sec.name}</div><div style={{fontSize:'9px',color:'#9CA3AF'}}>{pctOfTotal}% of portfolio</div></div>
+                <div style={{textAlign:'center',flex:1}}><div style={{fontSize:'10px',color:'#9CA3AF'}}>Balance</div><div style={{fontSize:'11px',fontWeight:600,color:'#B8860B'}}>{fmt(sec.cur)}</div></div>
+                <div style={{textAlign:'right',flex:1}}><div style={{fontSize:'9px',color:'#9CA3AF'}}>Cannot withdraw</div></div>
+              </div>;})}</div>}
             </div>;
           })()}
         </div>
@@ -961,4 +974,4 @@ function WealthApp(){
 ReactDOM.createRoot(document.getElementById('root')).render(<WealthApp/>);
 </script>
 </body>
-</html>
+</html><
