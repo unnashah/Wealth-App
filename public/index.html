@@ -638,8 +638,8 @@ function WealthApp(){
         <div style={{display:'flex',gap:'4px',marginBottom:'8px',overflowX:'auto',paddingBottom:'2px'}}>{['metals','govt','markets','propins'].map(t=><button key={t} style={S.tabBtn(subTab===t)} onClick={()=>setSubTab(t)}>{t==='metals'?'Metals & SGB':t==='govt'?'Govt':t==='markets'?'Markets':t==='propins'?'Property & Ins':t}</button>)}</div>
  
         {subTab==='metals'&&<div>
-          <div style={S.cardG}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'10px'}}><div style={S.ct}>Prices/gram</div>{!editingPrices?<button style={S.refreshBtn} onClick={()=>{setTempPrices({gold24k:prices.gold24k,gold22k:prices.gold22k,gold18k:prices.gold18k,silver:prices.silver});setEditingPrices(true);}}>Update</button>:<button style={{padding:'7px 14px',background:'#B8860B',color:'#FFFFFF',border:'none',borderRadius:'8px',fontSize:'11px',fontWeight:800,cursor:'pointer'}} onClick={()=>{uPrices({...tempPrices,updated:new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})+' '+new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short'})});setEditingPrices(false);}}>Save</button>}</div>
-            {editingPrices?<div>{[['gold24k','Gold 24K'],['gold22k','Gold 22K'],['gold18k','Gold 18K'],['silver','Silver']].map(p=><Inp key={p[0]} label={p[1]} value={tempPrices[p[0]]||''} onChange={e=>setTempPrices(prev=>({...prev,[p[0]]:parseFloat(e.target.value)||0}))}/>)}</div>
+          <div style={S.cardG}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'10px'}}><div style={S.ct}>Prices/gram</div>{!editingPrices?<button style={S.refreshBtn} onClick={()=>{setTempPrices({gold24k:prices.gold24k,gold22k:prices.gold22k,silver:prices.silver});setEditingPrices(true);}}>Update</button>:<button style={{padding:'7px 14px',background:'#B8860B',color:'#FFFFFF',border:'none',borderRadius:'8px',fontSize:'11px',fontWeight:800,cursor:'pointer'}} onClick={()=>{uPrices({...tempPrices,updated:new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})+' '+new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short'})});setEditingPrices(false);}}>Save</button>}</div>
+            {editingPrices?<div>{[['gold24k','Gold 24K'],['gold22k','Gold 22K'],['silver','Silver']].map(p=><Inp key={p[0]} label={p[1]} value={tempPrices[p[0]]||''} onChange={e=>setTempPrices(prev=>({...prev,[p[0]]:parseFloat(e.target.value)||0}))}/>)}</div>
             :<div>{[['Gold (24K)',prices.gold24k],['Gold (22K)',prices.gold22k],['Silver',prices.silver]].map(p=><Dr key={p[0]} label={p[0]} val={'\u20B9'+(p[1]||0).toLocaleString('en-IN')+'/g'}/>)}{prices.updated&&<div style={{fontSize:'9px',color:'#D1D5DB',marginTop:'6px'}}>{prices.updated}</div>}</div>}
           </div>
  
@@ -974,4 +974,4 @@ function WealthApp(){
 ReactDOM.createRoot(document.getElementById('root')).render(<WealthApp/>);
 </script>
 </body>
-</html><
+</html>
