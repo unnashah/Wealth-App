@@ -204,7 +204,8 @@ function WealthApp(){
   const [editingDebtId,setEditingDebtId]=useState(null);
   const [selectedDebt,setSelectedDebt]=useState(null);
   const [addingReset,setAddingReset]=useState(false); // false or loan index
-  const [editingResetIdx,setEditingResetIdx]=useState(null); // [debtIdx, resetIdx]
+  const [editingResetIdx,setEditingResetIdx]=useState(null);
+  const [showLoanDetail,setShowLoanDetail]=useState({}); // [debtIdx, resetIdx]
   const [newReset,setNewReset]=useState({date:'',rate:'',emi:'',tenure:'',reason:''});
   const [addingPrepay,setAddingPrepay]=useState(false); // false or loan index
   const [newPrepay,setNewPrepay]=useState({date:'',amount:'',type:'tenure'});
@@ -528,8 +529,8 @@ function WealthApp(){
         </div>
         
           {debts.filter(d=>d.type==='homeloan').map((d,hi)=>{const la=loanAnalysis(d);const resets=d.rateResets||[];const prepays=d.prepayments||[];const annualInt=f(d.outstanding)*f(d.interestRate)/100;return<div key={'la'+hi} style={{padding:'14px',background:'#F9FAFB',borderRadius:'12px',marginBottom:'10px',border:'1px solid #E5E7EB'}}>
-            <div style={{fontSize:'13px',fontWeight:800,color:'#B8860B',marginBottom:'10px'}}>{d.name} {'\u2014'} Complete Loan Picture</div>
-            <div style={{fontSize:'10px',color:'#92710A',fontWeight:700,marginBottom:'4px'}}>LOAN OVERVIEW</div>
+            <div style={{fontSize:'13px',fontWeight:800,color:'#B8860B',marginBottom:'10px',cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center'}} onClick={()=>setShowLoanDetail(p=>({...p,[d.name]:!p[d.name]}))}><span>{d.name} {'\u2014'} Complete Loan Picture</span><span style={{fontSize:'16px'}}>{showLoanDetail[d.name]?'\u25B2':'\u25BC'}</span></div>
+            {showLoanDetail[d.name]&&<div><div style={{fontSize:'10px',color:'#92710A',fontWeight:700,marginBottom:'4px'}}>LOAN OVERVIEW</div>
             <Dr label="Disbursement Date" val={fmtDate(d.startDate)}/>
             <Dr label="Original Loan Amount" val={fmt(f(d.originalAmount))}/>
             <Dr label="Loan Type" val={d.loanType==='fixed'?'Fixed Rate':'Floating Rate'}/>
@@ -566,7 +567,7 @@ function WealthApp(){
             {la.interestSaved>0&&<Dr label="Interest Saved (est.)" val={fmt(la.interestSaved)} color="#22C55E"/>}
             {addingPrepay===false?<button style={{...S.addBtn,background:'#F3F4F6',color:'#22C55E',border:'1px solid #22C55E44',fontSize:'10px',padding:'7px'}} onClick={e=>{e.stopPropagation();e.preventDefault();setAddingPrepay(true);}}>+ Add Prepayment</button>
             :addingPrepay!==false&&<div style={{padding:'8px',background:'#F3F4F6',borderRadius:'8px',marginTop:'4px'}}><div style={S.row2}><div style={{flex:1}}><div style={_lblS}>Date</div><input style={_inpS} type="date" value={newPrepay.date} onChange={e=>setNewPrepay(p=>({...p,date:e.target.value}))}/></div><div style={{flex:1}}><Inp label="Amount" value={newPrepay.amount} onChange={e=>setNewPrepay(p=>({...p,amount:e.target.value}))}/></div></div><div style={{display:'flex',gap:'6px',marginBottom:'8px'}}><button style={S.chip(newPrepay.type==='tenure')} onClick={()=>setNewPrepay(p=>({...p,type:'tenure'}))}>Reduce Tenure</button><button style={S.chip(newPrepay.type==='emi')} onClick={()=>setNewPrepay(p=>({...p,type:'emi'}))}>Reduce EMI</button></div><div style={S.row2}><button style={{...S.addBtn,flex:1,marginTop:0}} onClick={()=>{if(!newPrepay.date||!newPrepay.amount)return;var c=JSON.parse(JSON.stringify(debts));var idx=debts.findIndex(x=>x.name===d.name&&x.type==='homeloan');if(idx>=0){c[idx].prepayments=[...(c[idx].prepayments||[]),{date:newPrepay.date,amount:newPrepay.amount,type:newPrepay.type}];c[idx].outstanding=String(f(c[idx].outstanding)-f(newPrepay.amount));uDebts(c);}setNewPrepay({date:'',amount:'',type:'tenure'});setAddingPrepay(false);}}>Save</button><button style={{...S.addBtn,flex:1,marginTop:0,background:'#E5E7EB',color:'#6B7280'}} onClick={()=>setAddingPrepay(false)}>Cancel</button></div></div>}
-          </div>})}
+          </div>}</div>})}
  
         {/* Income History */}
         <div style={S.card}><div style={S.ct}>Income History</div>
