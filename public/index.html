@@ -142,7 +142,7 @@ function WealthApp(){
  
   // Govt
   const [ppf,setPpf]=useState(()=>load('w_ppf',{balance:'',monthlyContrib:'',startDate:'',interestRate:'7.1'}));
-  const [nps,setNps]=useState(()=>load('w_nps',{balance:'',monthlyContrib:'',employerContrib:'',age:'',startDate:''}));
+  const [nps,setNps]=useState(()=>load('w_nps',{balance:'',monthlyContrib:'',age:'',startDate:''}));
   const [epf,setEpf]=useState(()=>load('w_epf',{balance:'',monthlyContrib:'',employerContrib:'',serviceYears:'',interestRate:'8.25',startDate:''}));
  
   // Tax
@@ -599,9 +599,9 @@ function WealthApp(){
           </div>
           <div style={S.card}><div style={S.ct}>NPS</div>
             <Inp label="Balance" value={nps.balance} onChange={e=>uNps({...nps,balance:e.target.value})}/>
-            <div style={S.row2}><div style={{flex:1}}><Inp label="Your/mo" value={nps.monthlyContrib} onChange={e=>uNps({...nps,monthlyContrib:e.target.value})}/></div><div style={{flex:1}}><Inp label="Employer/mo" value={nps.employerContrib} onChange={e=>uNps({...nps,employerContrib:e.target.value})}/></div></div>
+            <Inp label="Monthly Contribution" value={nps.monthlyContrib} onChange={e=>uNps({...nps,monthlyContrib:e.target.value})}/>
             <div style={S.row2}><div style={{flex:1}}><Inp label="Age" value={nps.age} onChange={e=>uNps({...nps,age:e.target.value})} placeholder="35"/></div><div style={{flex:1}}><div style={_lblS}>Start Date</div><input style={{..._inpS,marginBottom:'8px'}} type="date" value={nps.startDate||''} onChange={e=>uNps({...nps,startDate:e.target.value})}/></div></div>
-            {nps.balance&&nps.age&&(()=>{var ytr=Math.max(0,60-f(nps.age)),proj=f(nps.balance);for(var i=0;i<ytr*12;i++)proj=(proj+f(nps.monthlyContrib)+f(nps.employerContrib))*(1+10/100/12);return<div style={{padding:'8px',background:'#F3F4F6',borderRadius:'8px',marginTop:'4px'}}><Dr label="Retire in" val={ytr+'yr'}/><Dr label="Projected" val={fmt(proj)} color="#22C55E"/><Dr label="60% lump" val={fmt(proj*0.6)} color="#22C55E"/><Dr label="40% annuity" val={fmt(proj*0.4)}/><InfoBox>At 60: 60% tax-free lump sum, 40% must buy annuity. Before 60: 20%/80%. Extra ₹50K deduction 80CCD(1B) old regime.</InfoBox></div>;})()}
+            {nps.balance&&nps.age&&(()=>{var ytr=Math.max(0,60-f(nps.age)),proj=f(nps.balance);for(var i=0;i<ytr*12;i++)proj=(proj+f(nps.monthlyContrib))*(1+10/100/12);return<div style={{padding:'8px',background:'#F3F4F6',borderRadius:'8px',marginTop:'4px'}}><Dr label="Retire in" val={ytr+'yr'}/><Dr label="Projected" val={fmt(proj)} color="#22C55E"/><Dr label="60% lump" val={fmt(proj*0.6)} color="#22C55E"/><Dr label="40% annuity" val={fmt(proj*0.4)}/><InfoBox>At 60: 60% tax-free lump sum, 40% must buy annuity. Before 60: 20%/80%. Extra ₹50K deduction 80CCD(1B) old regime.</InfoBox></div>;})()}
           </div>
           <div style={S.card}><div style={S.ct}>EPF</div>
             <Inp label="Balance" value={epf.balance} onChange={e=>uEpf({...epf,balance:e.target.value})}/>
