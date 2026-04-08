@@ -481,10 +481,10 @@ function WealthApp(){
           {annualBonus>0&&<Dr label="Annual Bonus" val={fmt(annualBonus)} color="#A855F7"/>}
           {annualInvestmentIncome>0&&<Dr label="Other Annual Income" val={fmt(annualInvestmentIncome)} color="#3B82F6"/>}
           <Dr label="Annual Revenue" val={fmt(annualRevenue)} color="#22C55E"/>
-          {(()=>{const types={};(taxProfile.entries||[]).forEach(e=>{const t=e.incomeType||'salary';types[t]=(types[t]||0)+f(e.income);});return Object.keys(types).length>1?Object.entries(types).map(([t,v])=><Dr key={t} label={'  '+t.charAt(0).toUpperCase()+t.slice(1)} val={fmt(v)} color="#888"/>):null;})()}
+ 
             <Dr label="EMIs" val={fmt(emiTotal)} color="#EF4444"/>
             <Dr label="SIPs" val={fmt(sipTotal)} color="#3B82F6"/>
-            <Dr label="Insurance" val={fmt(totalInsurancePremium/12)} color="#888"/>
+            <Dr label="Insurance (annual)" val={fmt(totalInsurancePremium)} color="#6B7280"/>
             <Dr label="Expenses" val={fmt(f(monthlyExpenses))} color="#EF4444"/>
             
             <Dr label="Savings Rate" val={savingsRate+'%'} color={f(savingsRate)>20?'#22C55E':f(savingsRate)>0?'#B8860B':'#EF4444'}/>
@@ -876,3 +876,4 @@ ReactDOM.createRoot(document.getElementById('root')).render(<WealthApp/>);
 </script>
 </body>
 </html>
+ 
