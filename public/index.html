@@ -158,12 +158,15 @@ function WealthApp(){
   // Crypto
   const [crypto,setCrypto]=useState(()=>load('w_crypto',[]));
   const [addingCrypto,setAddingCrypto]=useState(false);
-  const [newCrypto,setNewCrypto]=useState({coin:'bitcoin',symbol:'BTC',qty:'',buyPrice:'',purchaseDate:''});
+  const [newCrypto,setNewCrypto]=useState({coin:'bitcoin',symbol:'BTC',qty:'',buyPrice:'',purchaseDate:'',investedTotal:'',currentValue:''});
   const [editingCryptoId,setEditingCryptoId]=useState(null);
  
   // MF
   const [mfHoldings,setMfHoldings]=useState(()=>load('w_mf',[]));
   const [addingMf,setAddingMf]=useState(false);
+  const [expandMf,setExpandMf]=useState(false);
+  const [expandStocks,setExpandStocks]=useState(false);
+  const [expandCrypto,setExpandCrypto]=useState(false);
   const [newMf,setNewMf]=useState({schemeCode:'',schemeName:'',units:'',avgNav:'',type:'equity',purchaseDate:''});
   const [editingMfId,setEditingMfId]=useState(null);
   const [mfSearch,setMfSearch]=useState('');
@@ -318,7 +321,8 @@ function WealthApp(){
   const latestCTC=(()=>{var e=(taxProfile.entries||[]).filter(x=>x.incomeType==='salary'||!x.incomeType).sort((a,b)=>(a.year||0)-(b.year||0));return e.length>0?f(e[e.length-1].income):0;})();
   const annualBonus=(()=>{var e=(taxProfile.entries||[]).filter(x=>x.incomeType==='bonus').sort((a,b)=>(a.year||0)-(b.year||0));return e.length>0?f(e[e.length-1].income):0;})();
   const annualInvestmentIncome=(()=>{var e=(taxProfile.entries||[]).filter(x=>x.incomeType==='investment'||x.incomeType==='rental'||x.incomeType==='freelance').sort((a,b)=>(a.year||0)-(b.year||0));return e.reduce((s,x)=>s+f(x.income),0);})();
-  const annualRevenue=monthlyTakeHome*12+annualBonus+annualInvestmentIncome;
+  const fdAnnualPayout=fds.filter(fd=>fd.payout&&fd.payout!=='cumulative').reduce((s,fd)=>s+f(fd.principal)*f(fd.rate)/100,0);
+  const annualRevenue=monthlyTakeHome*12+annualBonus+annualInvestmentIncome+fdAnnualPayout;
   const latestIncome=monthlyTakeHome>0?monthlyTakeHome*12:latestCTC;
   const slabRate=()=>{const i=latestIncome;if(taxProfile.regime==='new'){if(i<=400000)return 0;if(i<=800000)return 5;if(i<=1200000)return 10;if(i<=1600000)return 15;if(i<=2000000)return 20;if(i<=2400000)return 25;return 30;}if(i<=250000)return 0;if(i<=500000)return 5;if(i<=1000000)return 20;return 30;};
   const emergencyFundNeeded=f(monthlyExpenses)*6;
@@ -326,7 +330,7 @@ function WealthApp(){
   const sipTotal=sips.filter(s=>s.status==='active').reduce((s,x)=>s+f(x.amount),0);
   const emiTotal=debts.reduce((s,d)=>s+f(d.emi),0);
   const totalInsurancePremium=insurance.reduce((s,i)=>s+f(i.premium),0);
-  const savingsRate=latestIncome>0?(monthlyTakeHome>0?((monthlyTakeHome-f(monthlyExpenses)-emiTotal-sipTotal-f(ppf.monthlyContrib)-totalInsurancePremium/12)/monthlyTakeHome*100):0).toFixed(0):0;
+  const savingsRate=latestIncome>0?(monthlyTakeHome>0?((sipTotal+f(ppf.monthlyContrib))/monthlyTakeHome*100):0).toFixed(0):0;
  
   // Loan analysis helper
   const loanAnalysis=(debt)=>{
@@ -449,8 +453,8 @@ function WealthApp(){
             var stCur=stocks.reduce((s,h)=>s+h.qty*(h.currentPrice||h.avgPrice),0);
             var mfInv=mfHoldings.reduce((s,h)=>s+h.units*h.avgNav,0);
             var mfCur=mfHoldings.reduce((s,h)=>s+h.units*(h.currentNav||h.avgNav),0);
-            var crInv=crypto.reduce((s,c)=>s+c.qty*f(c.buyPrice),0);
-            var crCur=crypto.reduce((s,c)=>s+c.qty*(c.priceINR||f(c.buyPrice)),0);
+            var crInv=crypto.reduce((s,c)=>s+(c.isSimple?f(c.investedTotal):c.qty*f(c.buyPrice)),0);
+            var crCur=crypto.reduce((s,c)=>s+(c.isSimple?f(c.currentValue||c.investedTotal):c.qty*(c.priceINR||f(c.buyPrice))),0);
             var totInv=stInv+mfInv+crInv;
             var totCur=stCur+mfCur+crCur;
             var totG=pnl(totInv,totCur);
@@ -470,24 +474,59 @@ function WealthApp(){
             </div>;
           })()}
           </div>
+        <div style={S.card}><div style={S.ct}>INVESTMENT DASHBOARD</div>
+          {(()=>{
+            var sections=[];
+            var stInv=stocks.reduce((s,h)=>s+h.qty*h.avgPrice,0),stCur=stocks.reduce((s,h)=>s+h.qty*(h.currentPrice||h.avgPrice),0);
+            if(stInv>0)sections.push({name:'Stocks',inv:stInv,cur:stCur});
+            var mfInv=mfHoldings.reduce((s,h)=>s+h.units*h.avgNav,0),mfCur=mfHoldings.reduce((s,h)=>s+h.units*(h.currentNav||h.avgNav),0);
+            if(mfInv>0)sections.push({name:'Mutual Funds',inv:mfInv,cur:mfCur});
+            var crInv=crypto.reduce((s,c)=>s+(c.isSimple?f(c.investedTotal):c.qty*f(c.buyPrice)),0),crCur=crypto.reduce((s,c)=>s+(c.isSimple?f(c.currentValue||c.investedTotal):c.qty*(c.priceINR||f(c.buyPrice))),0);
+            if(crInv>0)sections.push({name:'Crypto',inv:crInv,cur:crCur});
+            if(f(ppf.balance)>0)sections.push({name:'PPF',inv:f(ppf.balance),cur:f(ppf.balance)});
+            if(f(nps.balance)>0)sections.push({name:'NPS',inv:f(nps.balance),cur:f(nps.balance)});
+            if(f(epf.balance)>0)sections.push({name:'EPF',inv:f(epf.balance),cur:f(epf.balance)});
+            if(sgbVal()>0)sections.push({name:'SGB',inv:f(sgb.purchasePrice)*f(sgb.grams),cur:sgbVal()});
+            var fdTotP=fds.reduce((s,fd)=>s+f(fd.principal),0);
+            if(fdTotP>0)sections.push({name:'FDs',inv:fdTotP,cur:fdTotP});
+            if(metalVal()>0){var mCost=metalItems.reduce((s,i)=>s+f(i.cost),0);sections.push({name:'Metals',inv:mCost||metalVal(),cur:metalVal()});}
+            if(propVal>0){var pCost=properties.reduce((s,p)=>s+f(p.purchasePrice),0);sections.push({name:'Property',inv:pCost,cur:propVal});}
+            var grandInv=sections.reduce((s,x)=>s+x.inv,0),grandCur=sections.reduce((s,x)=>s+x.cur,0),gPnl=pnl(grandInv,grandCur);
+            if(grandInv===0)return<div style={{fontSize:'11px',color:'#9CA3AF'}}>Add investments to see dashboard</div>;
+            return<div>
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:'10px',padding:'10px',background:'#FFFBEB',borderRadius:'8px',border:'1px solid #D4A01733'}}>
+                <div><div style={{fontSize:'9px',color:'#92710A'}}>TOTAL INVESTED</div><div style={{fontSize:'20px',fontWeight:800,color:'#1F2937'}}>{fmt(grandInv)}</div></div>
+                <div style={{textAlign:'center'}}><div style={{fontSize:'9px',color:'#92710A'}}>CURRENT VALUE</div><div style={{fontSize:'20px',fontWeight:800,color:'#B8860B'}}>{fmt(grandCur)}</div></div>
+                <div style={{textAlign:'right'}}><div style={{fontSize:'9px',color:'#92710A'}}>TOTAL P&L</div><div style={{fontSize:'20px',fontWeight:800,color:gPnl.amt>=0?'#22C55E':'#EF4444'}}>{gPnl.amt>=0?'+':''}{fmt(gPnl.amt)}</div><div style={{fontSize:'10px',color:gPnl.amt>=0?'#22C55E':'#EF4444'}}>{gPnl.pct>=0?'+':''}{gPnl.pct.toFixed(1)}%</div></div>
+              </div>
+              {sections.map(sec=>{var g=pnl(sec.inv,sec.cur);var pctOfTotal=grandCur>0?(sec.cur/grandCur*100).toFixed(0):0;return<div key={sec.name} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px',background:'#F3F4F6',borderRadius:'6px',marginBottom:'4px'}}>
+                <div style={{flex:1}}><div style={{fontSize:'11px',fontWeight:700,color:'#1F2937'}}>{sec.name}</div><div style={{fontSize:'9px',color:'#9CA3AF'}}>{pctOfTotal}% of portfolio</div></div>
+                <div style={{textAlign:'center',flex:1}}><div style={{fontSize:'10px',color:'#9CA3AF'}}>Invested</div><div style={{fontSize:'11px',fontWeight:600,color:'#1F2937'}}>{fmt(sec.inv)}</div></div>
+                <div style={{textAlign:'center',flex:1}}><div style={{fontSize:'10px',color:'#9CA3AF'}}>Current</div><div style={{fontSize:'11px',fontWeight:600,color:'#B8860B'}}>{fmt(sec.cur)}</div></div>
+                <div style={{textAlign:'right',flex:1}}><div style={{fontSize:'10px',color:'#9CA3AF'}}>P&L</div><div style={{fontSize:'11px',fontWeight:700,color:g.amt>=0?'#22C55E':'#EF4444'}}>{g.amt>=0?'+':''}{fmt(g.amt)}</div><div style={{fontSize:'9px',color:g.amt>=0?'#22C55E':'#EF4444'}}>{g.pct>=0?'+':''}{g.pct.toFixed(1)}%</div></div>
+              </div>;})}
+            </div>;
+          })()}
+        </div>
         <AllocPie segments={allocSegs}/>
  
         {/* Cash Flow Summary */}
         {monthlyTakeHome>0&&<div style={S.card}><div style={S.ct}>Cash Flow</div>
           <Inp label="Monthly Expenses" value={monthlyExpenses} onChange={e=>uExpenses(e.target.value)} placeholder="50000"/>
           {monthlyExpenses&&<div style={{marginTop:'6px'}}>
-            <Dr label="Monthly Take Home" val={fmt(monthlyTakeHome)} bold/>
-          {latestCTC>0&&<Dr label="Annual CTC" val={fmt(latestCTC)} color="#9CA3AF"/>}
+                      {latestCTC>0&&<Dr label="Annual CTC" val={fmt(latestCTC)}/>}
+          <Dr label="Monthly Take Home" val={fmt(monthlyTakeHome)} bold/>
           {annualBonus>0&&<Dr label="Annual Bonus" val={fmt(annualBonus)} color="#A855F7"/>}
-          {annualInvestmentIncome>0&&<Dr label="Other Annual Income" val={fmt(annualInvestmentIncome)} color="#3B82F6"/>}
-          <Dr label="Annual Revenue" val={fmt(annualRevenue)} color="#22C55E"/>
+          {annualInvestmentIncome>0&&<Dr label="Dividends/Interest Income" val={fmt(annualInvestmentIncome)} color="#3B82F6"/>}
+          {fdAnnualPayout>0&&<Dr label="FD Payouts (annual)" val={fmt(fdAnnualPayout)} color="#22C55E"/>}
+          {(()=>{var m=new Date().getMonth(),y=new Date().getFullYear(),fy=m>=3?'FY'+y.toString().slice(2)+'-'+(y+1).toString().slice(2):'FY'+(y-1).toString().slice(2)+'-'+y.toString().slice(2);return<div style={{padding:'8px',background:'#FFFBEB',borderRadius:'6px',marginTop:'6px',marginBottom:'6px',border:'1px solid #D4A01733'}}><div style={{fontSize:'10px',color:'#92710A',marginBottom:'2px'}}>Annual Revenue ({fy})</div><div style={{fontSize:'14px',fontWeight:800,color:'#22C55E'}}>{fmt(monthlyTakeHome*12)} + {fmt(annualBonus)}{annualInvestmentIncome>0?' + '+fmt(annualInvestmentIncome):''}{fdAnnualPayout>0?' + '+fmt(fdAnnualPayout):''} = {fmt(annualRevenue)}<div style={{fontSize:'9px',color:'#92710A',marginTop:'4px'}}>Take Home x12{annualBonus>0?' + Bonus':''}{annualInvestmentIncome>0?' + Dividends/Interest':''}{fdAnnualPayout>0?' + FD Payouts':''}</div></div></div>;})()}
  
             <Dr label="EMIs" val={fmt(emiTotal)} color="#EF4444"/>
             <Dr label="SIPs" val={fmt(sipTotal)} color="#3B82F6"/>
-            <Dr label="Insurance (annual)" val={fmt(totalInsurancePremium)} color="#6B7280"/>
+            
             <Dr label="Expenses" val={fmt(f(monthlyExpenses))} color="#EF4444"/>
             
-            <Dr label="Savings Rate" val={savingsRate+'%'} color={f(savingsRate)>20?'#22C55E':f(savingsRate)>0?'#B8860B':'#EF4444'}/>
+            <Dr label="Savings Rate (investments/income)" val={savingsRate+'%'} color={f(savingsRate)>20?'#22C55E':f(savingsRate)>0?'#B8860B':'#EF4444'}/>
           </div>}
         </div>}
  
@@ -667,7 +706,8 @@ function WealthApp(){
  
           {/* MF Holdings */}
           <div style={S.card}><div style={{display:'flex',justifyContent:'space-between'}}><div style={S.ct}>Mutual Funds</div><button style={S.refreshBtn} onClick={async()=>{uMf(await Promise.all(mfHoldings.map(async h=>{var n=await fetchNAV(h.schemeCode);return n?{...h,currentNav:n.nav,navDate:n.date}:h;})));}}>{'\u21BB'}</button></div>
-            {mfHoldings.slice().sort((a,b)=>new Date(a.purchaseDate||0)-new Date(b.purchaseDate||0)).map(h=>{var cur=h.units*(h.currentNav||0),cost=h.units*(h.avgNav||0);return<div key={h.id} style={{padding:'6px 8px',background:'#F3F4F6',borderRadius:'6px',marginBottom:'3px'}}><div style={{display:'flex',justifyContent:'space-between'}}><div style={{flex:1}}><div style={{fontSize:'11px',color:'#B8860B',fontWeight:700}}>{h.schemeName}</div><span style={{fontSize:'10px',color:'#9CA3AF'}}>{h.units}u</span>{h.schemeCode?<span style={{fontSize:'9px',color:'#22C55E',marginLeft:'4px'}}>{'\u2713'}</span>:<button style={{fontSize:'9px',color:'#92710A',background:'none',border:'none',cursor:'pointer',marginLeft:'4px'}} onClick={()=>{setLinkingMfId(h.id);setLinkSearch('');}}>link NAV</button>}</div><div style={{textAlign:'right'}}><div style={{fontSize:'12px',fontWeight:800,color:'#B8860B'}}>{h.currentNav?fmt(cur):'\u2014'}</div>{cost>0&&h.currentNav&&<div style={{fontSize:'10px',color:gc(cur,cost)}}>{pct(cur,cost)}%</div>}</div></div>
+            {mfHoldings.length>0&&<div onClick={()=>setExpandMf(!expandMf)} style={{display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer',padding:'6px 0'}}><span style={{fontSize:'10px',color:'#92710A'}}>{mfHoldings.length} holdings</span><span style={{fontSize:'12px',color:'#92710A'}}>{expandMf?'\u25B2':'\u25BC'}</span></div>}
+            {expandMf&&mfHoldings.slice().sort((a,b)=>new Date(a.purchaseDate||0)-new Date(b.purchaseDate||0)).map(h=>{var cur=h.units*(h.currentNav||0),cost=h.units*(h.avgNav||0);return<div key={h.id} style={{padding:'6px 8px',background:'#F3F4F6',borderRadius:'6px',marginBottom:'3px'}}><div style={{display:'flex',justifyContent:'space-between'}}><div style={{flex:1}}><div style={{fontSize:'11px',color:'#B8860B',fontWeight:700}}>{h.schemeName}</div><span style={{fontSize:'10px',color:'#9CA3AF'}}>{h.units}u</span>{h.schemeCode?<span style={{fontSize:'9px',color:'#22C55E',marginLeft:'4px'}}>{'\u2713'}</span>:<button style={{fontSize:'9px',color:'#92710A',background:'none',border:'none',cursor:'pointer',marginLeft:'4px'}} onClick={()=>{setLinkingMfId(h.id);setLinkSearch('');}}>link NAV</button>}</div><div style={{textAlign:'right'}}><div style={{fontSize:'12px',fontWeight:800,color:'#B8860B'}}>{h.currentNav?fmt(cur):'\u2014'}</div>{cost>0&&h.currentNav&&<div style={{fontSize:'10px',color:gc(cur,cost)}}>{pct(cur,cost)}%</div>}</div></div>
               {linkingMfId===h.id&&<div style={{marginTop:'4px'}}><input style={{..._inpS,fontSize:'11px',padding:'6px'}} placeholder="Search fund..." value={linkSearch} onChange={async e=>{setLinkSearch(e.target.value);if(e.target.value.length>=3){try{const r=await fetch('https://api.mfapi.in/mf/search?q='+encodeURIComponent(e.target.value));setLinkResults((await r.json()).slice(0,4));}catch{}}else setLinkResults([]);}}/>{linkResults.map(r=><div key={r.schemeCode} style={{padding:'6px',fontSize:'10px',color:'#B8860B',cursor:'pointer',borderBottom:'1px solid #E5E7EB'}} onClick={async()=>{const nav=await fetchNAV(String(r.schemeCode));uMf(mfHoldings.map(x=>x.id===h.id?{...x,schemeCode:String(r.schemeCode),schemeName:r.schemeName,currentNav:(nav||{}).nav,navDate:(nav||{}).date}:x));setLinkingMfId(null);}}>{r.schemeName}</div>)}<button style={{fontSize:'9px',color:'#9CA3AF',background:'none',border:'none',cursor:'pointer'}} onClick={()=>setLinkingMfId(null)}>cancel</button></div>}
               <IA onEdit={()=>{setEditingMfId(h.id);setNewMf({schemeCode:h.schemeCode,schemeName:h.schemeName,units:String(h.units),avgNav:String(h.avgNav),type:h.type,purchaseDate:h.purchaseDate||''});setMfSearch(h.schemeName);setAddingMf(true);}} onRemove={()=>uMf(mfHoldings.filter(x=>x.id!==h.id))}/>
             </div>;})}
@@ -689,7 +729,8 @@ function WealthApp(){
  
           {/* Stocks */}
           <div style={S.card}><div style={{display:'flex',justifyContent:'space-between'}}><div style={S.ct}>Stocks</div><button style={S.refreshBtn} onClick={async()=>{setLoadingStocks(true);uStocks(await fetchSP(stocks));setLoadingStocks(false);}}>{loadingStocks?'...':'\u21BB'}</button></div>
-            {stocks.slice().sort((a,b)=>new Date(a.purchaseDate||0)-new Date(b.purchaseDate||0)).map(h=>{var cur=h.qty*(h.currentPrice||0),cost=h.qty*(h.avgPrice||0);return<div key={h.id} style={{padding:'6px 8px',background:'#F3F4F6',borderRadius:'6px',marginBottom:'3px'}}><div style={{display:'flex',justifyContent:'space-between'}}><div><div style={{fontSize:'12px',fontWeight:800,color:'#B8860B'}}>{h.symbol} {h.change!=null&&<span style={{fontSize:'9px',color:h.change>=0?'#22C55E':'#EF4444'}}>{h.change>=0?'+':''}{(h.change||0).toFixed(1)}%</span>}</div>{(()=>{var cv=h.qty*(h.currentPrice||h.avgPrice),iv=h.qty*h.avgPrice,g=pnl(iv,cv),hd=holdDays(h.purchaseDate),ca=cagr(iv,cv,hd);return<div><div style={{fontSize:'10px',color:'#9CA3AF'}}>{h.qty} @ \u20B9{h.avgPrice}{h.purchaseDate?' \u00B7 '+fmtDate(h.purchaseDate):''}{hd>0?' \u00B7 '+(hd>365?Math.floor(hd/365)+'yr ':'')+((hd%365)>30?Math.floor((hd%365)/30)+'mo':''):''}</div><div style={{display:'flex',gap:'8px',flexWrap:'wrap',marginTop:'2px'}}><span style={{fontSize:'10px',color:g.amt>=0?'#22C55E':'#EF4444'}}>{g.amt>=0?'+':''}{fmt(g.amt)} ({g.pct>=0?'+':''}{g.pct.toFixed(1)}%)</span>{hd>365&&<span style={{fontSize:'9px',padding:'1px 4px',borderRadius:'3px',background:'#F0FDF4',color:'#22C55E'}}>LTCG</span>}{hd>0&&hd<=365&&<span style={{fontSize:'9px',padding:'1px 4px',borderRadius:'3px',background:'#FEF2F2',color:'#EF4444'}}>STCG</span>}{hd>30&&<span style={{fontSize:'10px',color:'#6B7280'}}>CAGR {ca.toFixed(1)}%</span>}</div></div>;})()}</div><div style={{textAlign:'right'}}><div style={{fontSize:'12px',fontWeight:800,color:'#B8860B'}}>{h.currentPrice?fmt(cur):'\u2014'}</div>{cost>0&&h.currentPrice&&<div style={{fontSize:'10px',color:gc(cur,cost)}}>{pct(cur,cost)}%</div>}</div></div>
+            {stocks.length>0&&<div onClick={()=>setExpandStocks(!expandStocks)} style={{display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer',padding:'6px 0'}}><span style={{fontSize:'10px',color:'#92710A'}}>{stocks.length} holdings</span><span style={{fontSize:'12px',color:'#92710A'}}>{expandStocks?'\u25B2':'\u25BC'}</span></div>}
+            {expandStocks&&stocks.slice().sort((a,b)=>new Date(a.purchaseDate||0)-new Date(b.purchaseDate||0)).map(h=>{var cur=h.qty*(h.currentPrice||0),cost=h.qty*(h.avgPrice||0);return<div key={h.id} style={{padding:'6px 8px',background:'#F3F4F6',borderRadius:'6px',marginBottom:'3px'}}><div style={{display:'flex',justifyContent:'space-between'}}><div><div style={{fontSize:'12px',fontWeight:800,color:'#B8860B'}}>{h.symbol} {h.change!=null&&<span style={{fontSize:'9px',color:h.change>=0?'#22C55E':'#EF4444'}}>{h.change>=0?'+':''}{(h.change||0).toFixed(1)}%</span>}</div>{(()=>{var cv=h.qty*(h.currentPrice||h.avgPrice),iv=h.qty*h.avgPrice,g=pnl(iv,cv),hd=holdDays(h.purchaseDate),ca=cagr(iv,cv,hd);return<div><div style={{fontSize:'10px',color:'#9CA3AF'}}>{h.qty} @ \u20B9{h.avgPrice}{h.purchaseDate?' \u00B7 '+fmtDate(h.purchaseDate):''}{hd>0?' \u00B7 '+(hd>365?Math.floor(hd/365)+'yr ':'')+((hd%365)>30?Math.floor((hd%365)/30)+'mo':''):''}</div><div style={{display:'flex',gap:'8px',flexWrap:'wrap',marginTop:'2px'}}><span style={{fontSize:'10px',color:g.amt>=0?'#22C55E':'#EF4444'}}>{g.amt>=0?'+':''}{fmt(g.amt)} ({g.pct>=0?'+':''}{g.pct.toFixed(1)}%)</span>{hd>365&&<span style={{fontSize:'9px',padding:'1px 4px',borderRadius:'3px',background:'#F0FDF4',color:'#22C55E'}}>LTCG</span>}{hd>0&&hd<=365&&<span style={{fontSize:'9px',padding:'1px 4px',borderRadius:'3px',background:'#FEF2F2',color:'#EF4444'}}>STCG</span>}{hd>30&&<span style={{fontSize:'10px',color:'#6B7280'}}>CAGR {ca.toFixed(1)}%</span>}</div></div>;})()}</div><div style={{textAlign:'right'}}><div style={{fontSize:'12px',fontWeight:800,color:'#B8860B'}}>{h.currentPrice?fmt(cur):'\u2014'}</div>{cost>0&&h.currentPrice&&<div style={{fontSize:'10px',color:gc(cur,cost)}}>{pct(cur,cost)}%</div>}</div></div>
               <IA onEdit={()=>{setEditingStockId(h.id);setNewStock({symbol:h.symbol,name:h.name,qty:String(h.qty),avgPrice:String(h.avgPrice),purchaseDate:h.purchaseDate||''});setStockSearch(h.symbol);setAddingStock(true);}} onRemove={()=>uStocks(stocks.filter(x=>x.id!==h.id))}/>
             </div>;})}
             {stocks.length>0&&(()=>{var inv=stocks.reduce((s,h)=>s+h.qty*h.avgPrice,0),cur=stocks.reduce((s,h)=>s+h.qty*(h.currentPrice||h.avgPrice),0),g=pnl(inv,cur);return<div style={{padding:'8px',background:'#FFFBEB',borderRadius:'8px',marginBottom:'8px',border:'1px solid #D4A01733'}}><div style={{display:'flex',justifyContent:'space-between'}}><div><div style={{fontSize:'9px',color:'#92710A'}}>INVESTED</div><div style={{fontSize:'14px',fontWeight:700,color:'#1F2937'}}>{fmt(inv)}</div></div><div style={{textAlign:'center'}}><div style={{fontSize:'9px',color:'#92710A'}}>CURRENT</div><div style={{fontSize:'14px',fontWeight:700,color:'#B8860B'}}>{fmt(cur)}</div></div><div style={{textAlign:'right'}}><div style={{fontSize:'9px',color:'#92710A'}}>P&L</div><div style={{fontSize:'14px',fontWeight:700,color:g.amt>=0?'#22C55E':'#EF4444'}}>{g.amt>=0?'+':''}{fmt(g.amt)} ({g.pct>=0?'+':''}{g.pct.toFixed(1)}%)</div></div></div></div>;})()}
@@ -701,11 +742,22 @@ function WealthApp(){
  
           {/* Crypto */}
           <div style={S.card}><div style={S.ct}>Crypto</div>
-            {crypto.slice().sort((a,b)=>new Date(a.purchaseDate||0)-new Date(b.purchaseDate||0)).map(c=>{var curV=f(c.qty)*(c.priceINR||0),costV=f(c.qty)*f(c.buyPrice);return<div key={c.id} style={{padding:'6px 8px',background:'#F3F4F6',borderRadius:'6px',marginBottom:'3px'}}><div style={{display:'flex',justifyContent:'space-between'}}><div><span style={{fontSize:'12px',fontWeight:800,color:'#B8860B'}}>{c.symbol}</span>{c.change24h!=null&&<span style={{fontSize:'9px',marginLeft:'4px',color:c.change24h>=0?'#22C55E':'#EF4444'}}>{c.change24h>=0?'+':''}{(c.change24h||0).toFixed(1)}%</span>}<div style={{fontSize:'10px',color:'#9CA3AF'}}>{c.qty} coins</div></div><div style={{textAlign:'right'}}><div style={{fontSize:'12px',fontWeight:800,color:'#B8860B'}}>{c.priceINR?fmt(curV):'\u2014'}</div>{costV>0&&c.priceINR&&<div style={{fontSize:'10px',color:gc(curV,costV)}}>{pct(curV,costV)}%</div>}</div></div><IA onEdit={()=>{setEditingCryptoId(c.id);setNewCrypto({coin:c.coin,symbol:c.symbol,qty:String(c.qty),buyPrice:String(c.buyPrice),purchaseDate:c.purchaseDate||''});setAddingCrypto(true);}} onRemove={()=>uCrypto(crypto.filter(x=>x.id!==c.id))}/></div>;})}
+            {crypto.length>0&&<div onClick={()=>setExpandCrypto(!expandCrypto)} style={{display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer',padding:'6px 0'}}><span style={{fontSize:'10px',color:'#92710A'}}>{crypto.length} holdings</span><span style={{fontSize:'12px',color:'#92710A'}}>{expandCrypto?'\u25B2':'\u25BC'}</span></div>}
+            {expandCrypto&&crypto.slice().sort((a,b)=>new Date(a.purchaseDate||0)-new Date(b.purchaseDate||0)).map(c=>{var curV=f(c.qty)*(c.priceINR||0),costV=f(c.qty)*f(c.buyPrice);return<div key={c.id} style={{padding:'6px 8px',background:'#F3F4F6',borderRadius:'6px',marginBottom:'3px'}}><div style={{display:'flex',justifyContent:'space-between'}}><div><span style={{fontSize:'12px',fontWeight:800,color:'#B8860B'}}>{c.symbol}</span>{c.change24h!=null&&<span style={{fontSize:'9px',marginLeft:'4px',color:c.change24h>=0?'#22C55E':'#EF4444'}}>{c.change24h>=0?'+':''}{(c.change24h||0).toFixed(1)}%</span>}<div style={{fontSize:'10px',color:'#9CA3AF'}}>{c.qty} coins</div></div><div style={{textAlign:'right'}}><div style={{fontSize:'12px',fontWeight:800,color:'#B8860B'}}>{c.priceINR?fmt(curV):'\u2014'}</div>{costV>0&&c.priceINR&&<div style={{fontSize:'10px',color:gc(curV,costV)}}>{pct(curV,costV)}%</div>}</div></div><IA onEdit={()=>{setEditingCryptoId(c.id);setNewCrypto({coin:c.coin,symbol:c.symbol,qty:String(c.qty),buyPrice:String(c.buyPrice),purchaseDate:c.purchaseDate||'',investedTotal:String(c.investedTotal||''),currentValue:String(c.currentValue||'')});setAddingCrypto(true);}} onRemove={()=>uCrypto(crypto.filter(x=>x.id!==c.id))}/></div>;})}
             
-            {crypto.length>0&&(()=>{var inv=crypto.reduce((s,c)=>s+c.qty*f(c.buyPrice),0),cur=crypto.reduce((s,c)=>s+c.qty*(c.priceINR||f(c.buyPrice)),0),g=pnl(inv,cur);return<div style={{padding:'8px',background:'#FFFBEB',borderRadius:'8px',marginBottom:'8px',border:'1px solid #D4A01733'}}><div style={{display:'flex',justifyContent:'space-between'}}><div><div style={{fontSize:'9px',color:'#92710A'}}>INVESTED</div><div style={{fontSize:'14px',fontWeight:700,color:'#1F2937'}}>{fmt(inv)}</div></div><div style={{textAlign:'center'}}><div style={{fontSize:'9px',color:'#92710A'}}>CURRENT</div><div style={{fontSize:'14px',fontWeight:700,color:'#B8860B'}}>{fmt(cur)}</div></div><div style={{textAlign:'right'}}><div style={{fontSize:'9px',color:'#92710A'}}>P&L</div><div style={{fontSize:'14px',fontWeight:700,color:g.amt>=0?'#22C55E':'#EF4444'}}>{g.amt>=0?'+':''}{fmt(g.amt)} ({g.pct>=0?'+':''}{g.pct.toFixed(1)}%)</div></div></div></div>;})()}
+            {crypto.length>0&&(()=>{var inv=crypto.reduce((s,c)=>s+(c.isSimple?f(c.investedTotal):c.qty*f(c.buyPrice)),0),cur=crypto.reduce((s,c)=>s+(c.isSimple?f(c.currentValue||c.investedTotal):c.qty*(c.priceINR||f(c.buyPrice))),0),g=pnl(inv,cur);return<div style={{padding:'8px',background:'#FFFBEB',borderRadius:'8px',marginBottom:'8px',border:'1px solid #D4A01733'}}><div style={{display:'flex',justifyContent:'space-between'}}><div><div style={{fontSize:'9px',color:'#92710A'}}>INVESTED</div><div style={{fontSize:'14px',fontWeight:700,color:'#1F2937'}}>{fmt(inv)}</div></div><div style={{textAlign:'center'}}><div style={{fontSize:'9px',color:'#92710A'}}>CURRENT</div><div style={{fontSize:'14px',fontWeight:700,color:'#B8860B'}}>{fmt(cur)}</div></div><div style={{textAlign:'right'}}><div style={{fontSize:'9px',color:'#92710A'}}>P&L</div><div style={{fontSize:'14px',fontWeight:700,color:g.amt>=0?'#22C55E':'#EF4444'}}>{g.amt>=0?'+':''}{fmt(g.amt)} ({g.pct>=0?'+':''}{g.pct.toFixed(1)}%)</div></div></div></div>;})()}
             {!addingCrypto?<button style={S.addBtn} onClick={()=>{setAddingCrypto(true);setEditingCryptoId(null);}}>+ Add Crypto</button>
-            :<div style={{background:'#F3F4F6',borderRadius:'8px',padding:'8px',marginTop:'4px'}}><div style={{display:'flex',gap:'4px',flexWrap:'wrap',marginBottom:'8px'}}>{[['bitcoin','BTC'],['ethereum','ETH'],['binancecoin','BNB'],['solana','SOL'],['ripple','XRP'],['cardano','ADA'],['dogecoin','DOGE'],['shiba-inu','SHIB'],['polkadot','DOT'],['avalanche-2','AVAX'],['chainlink','LINK'],['litecoin','LTC'],['tether','USDT'],['the-sandbox','SAND'],['matic-network','MATIC'],['uniswap','UNI'],['tron','TRX'],['stellar','XLM'],['cosmos','ATOM'],['near','NEAR']].map(([id,sym])=><button key={id} style={S.chip(newCrypto.coin===id)} onClick={()=>setNewCrypto(p=>({...p,coin:id,symbol:sym}))}>{sym}</button>)}</div><div style={S.row2}><div style={{flex:1}}><Inp label="Qty" value={newCrypto.qty} onChange={e=>setNewCrypto(p=>({...p,qty:e.target.value}))} placeholder="0.05"/></div><div style={{flex:1}}><Inp label="Buy Price/unit" value={newCrypto.buyPrice} onChange={e=>setNewCrypto(p=>({...p,buyPrice:e.target.value}))}/></div></div><div style={_lblS}>Purchase Date</div><input style={{..._inpS,marginBottom:'8px'}} type="date" value={newCrypto.purchaseDate||''} onChange={e=>setNewCrypto(p=>({...p,purchaseDate:e.target.value}))}/><div style={S.row2}><button style={{...S.addBtn,flex:1,marginTop:0}} onClick={async()=>{if(!newCrypto.qty)return;if(editingCryptoId){var up=await fetchCryptoPrices([{coin:newCrypto.coin,symbol:newCrypto.symbol,qty:f(newCrypto.qty),buyPrice:f(newCrypto.buyPrice)}]);uCrypto(crypto.map(c=>c.id===editingCryptoId?{...c,...up[0],id:c.id,purchaseDate:newCrypto.purchaseDate||c.purchaseDate||'',qty:f(newCrypto.qty),buyPrice:f(newCrypto.buyPrice)}:c));}else{var c2={id:Date.now()+Math.random(),coin:newCrypto.coin,symbol:newCrypto.symbol,qty:f(newCrypto.qty),buyPrice:f(newCrypto.buyPrice),purchaseDate:newCrypto.purchaseDate||''};var up2=await fetchCryptoPrices([c2]);uCrypto([...crypto,{...up2[0],purchaseDate:c2.purchaseDate}]);}setAddingCrypto(false);setEditingCryptoId(null);}}>{editingCryptoId?'Update':'Add'}</button><button style={{...S.addBtn,flex:1,marginTop:0,background:'#E5E7EB',color:'#6B7280'}} onClick={()=>{setAddingCrypto(false);setEditingCryptoId(null);}}>Cancel</button></div></div>}
+            :<div style={{background:'#F3F4F6',borderRadius:'8px',padding:'8px',marginTop:'4px'}}><div style={{display:'flex',gap:'4px',flexWrap:'wrap',marginBottom:'8px'}}>{[['bitcoin','BTC'],['ethereum','ETH'],['binancecoin','BNB'],['solana','SOL'],['ripple','XRP'],['cardano','ADA'],['dogecoin','DOGE'],['shiba-inu','SHIB'],['polkadot','DOT'],['avalanche-2','AVAX'],['chainlink','LINK'],['litecoin','LTC'],['tether','USDT'],['the-sandbox','SAND'],['matic-network','MATIC'],['uniswap','UNI'],['tron','TRX'],['stellar','XLM'],['cosmos','ATOM'],['near','NEAR']].map(([id,sym])=><button key={id} style={S.chip(newCrypto.coin===id)} onClick={()=>setNewCrypto(p=>({...p,coin:id,symbol:sym}))}>{sym}</button>)}</div><div style={{fontSize:'9px',color:'#92710A',marginBottom:'6px'}}>Option 1: Enter total amounts directly</div>
+            <div style={S.row2}><div style={{flex:1}}><Inp label="Total Invested (₹)" value={newCrypto.investedTotal} onChange={e=>setNewCrypto(p=>({...p,investedTotal:e.target.value}))}/></div><div style={{flex:1}}><Inp label="Current Value (₹)" value={newCrypto.currentValue} onChange={e=>setNewCrypto(p=>({...p,currentValue:e.target.value}))}/></div></div>
+            <div style={{fontSize:'9px',color:'#92710A',marginBottom:'6px',marginTop:'4px'}}>Option 2: Enter per-unit details</div>
+            <div style={S.row2}><div style={{flex:1}}><Inp label="Qty (coins)" value={newCrypto.qty} onChange={e=>setNewCrypto(p=>({...p,qty:e.target.value}))} placeholder="0.05"/></div><div style={{flex:1}}><Inp label="Buy Price/unit" value={newCrypto.buyPrice} onChange={e=>setNewCrypto(p=>({...p,buyPrice:e.target.value}))}/></div></div><div style={_lblS}>Purchase Date</div><input style={{..._inpS,marginBottom:'8px'}} type="date" value={newCrypto.purchaseDate||''} onChange={e=>setNewCrypto(p=>({...p,purchaseDate:e.target.value}))}/><div style={S.row2}><button style={{...S.addBtn,flex:1,marginTop:0}} onClick={async()=>{if(!newCrypto.qty)return;if(editingCryptoId){var up=await fetchCryptoPrices([{coin:newCrypto.coin,symbol:newCrypto.symbol,qty:f(newCrypto.qty),buyPrice:f(newCrypto.buyPrice)}]);uCrypto(crypto.map(c=>c.id===editingCryptoId?{...c,...up[0],id:c.id,purchaseDate:newCrypto.purchaseDate||c.purchaseDate||'',qty:f(newCrypto.qty),buyPrice:f(newCrypto.buyPrice)}:c));}else{var useSimple=f(newCrypto.investedTotal)>0;
+              var c2={id:Date.now()+Math.random(),coin:newCrypto.coin,symbol:newCrypto.symbol,
+                qty:useSimple?1:f(newCrypto.qty),
+                buyPrice:useSimple?f(newCrypto.investedTotal):f(newCrypto.buyPrice),
+                purchaseDate:newCrypto.purchaseDate||'',
+                investedTotal:f(newCrypto.investedTotal)||0,
+                currentValue:f(newCrypto.currentValue)||0,
+                isSimple:useSimple};var up2=await fetchCryptoPrices([c2]);uCrypto([...crypto,{...up2[0],purchaseDate:c2.purchaseDate}]);}setAddingCrypto(false);setEditingCryptoId(null);}}>{editingCryptoId?'Update':'Add'}</button><button style={{...S.addBtn,flex:1,marginTop:0,background:'#E5E7EB',color:'#6B7280'}} onClick={()=>{setAddingCrypto(false);setEditingCryptoId(null);}}>Cancel</button></div></div>}
             <InfoBox>Section 115BBH: Flat 30% tax on ALL gains + 4% cess. No short/long term distinction. No deductions except cost of acquisition (no expenses, infrastructure, electricity). Cannot offset losses against ANY income. Cannot offset losses between different crypto assets. 1% TDS (Sec 194S) on transfers above ₹10K (₹50K for specified persons). Gifts of crypto: taxable if value over ₹50K. Mining/staking rewards: taxable @30% when received. Airdrops: taxable as income from other sources.</InfoBox>
  
           </div>
@@ -782,7 +834,41 @@ function WealthApp(){
         <div style={{display:'flex',gap:'4px',marginBottom:'8px',overflowX:'auto'}}>{['alloc','risk','docs'].map(t=><button key={t} style={S.tabBtn(subTab===t)} onClick={()=>setSubTab(t)}>{t==='alloc'?'Allocation':t==='risk'?'Risk & Liquidity':'Docs & Nominees'}</button>)}</div>
  
         {subTab==='alloc'&&<div>
-          <AllocPie segments={allocSegs}/>
+          <div style={S.card}><div style={S.ct}>INVESTMENT DASHBOARD</div>
+          {(()=>{
+            var sections=[];
+            var stInv=stocks.reduce((s,h)=>s+h.qty*h.avgPrice,0),stCur=stocks.reduce((s,h)=>s+h.qty*(h.currentPrice||h.avgPrice),0);
+            if(stInv>0)sections.push({name:'Stocks',inv:stInv,cur:stCur});
+            var mfInv=mfHoldings.reduce((s,h)=>s+h.units*h.avgNav,0),mfCur=mfHoldings.reduce((s,h)=>s+h.units*(h.currentNav||h.avgNav),0);
+            if(mfInv>0)sections.push({name:'Mutual Funds',inv:mfInv,cur:mfCur});
+            var crInv=crypto.reduce((s,c)=>s+(c.isSimple?f(c.investedTotal):c.qty*f(c.buyPrice)),0),crCur=crypto.reduce((s,c)=>s+(c.isSimple?f(c.currentValue||c.investedTotal):c.qty*(c.priceINR||f(c.buyPrice))),0);
+            if(crInv>0)sections.push({name:'Crypto',inv:crInv,cur:crCur});
+            if(f(ppf.balance)>0)sections.push({name:'PPF',inv:f(ppf.balance),cur:f(ppf.balance)});
+            if(f(nps.balance)>0)sections.push({name:'NPS',inv:f(nps.balance),cur:f(nps.balance)});
+            if(f(epf.balance)>0)sections.push({name:'EPF',inv:f(epf.balance),cur:f(epf.balance)});
+            if(sgbVal()>0)sections.push({name:'SGB',inv:f(sgb.purchasePrice)*f(sgb.grams),cur:sgbVal()});
+            var fdTotP=fds.reduce((s,fd)=>s+f(fd.principal),0);
+            if(fdTotP>0)sections.push({name:'FDs',inv:fdTotP,cur:fdTotP});
+            if(metalVal()>0){var mCost=metalItems.reduce((s,i)=>s+f(i.cost),0);sections.push({name:'Metals',inv:mCost||metalVal(),cur:metalVal()});}
+            if(propVal>0){var pCost=properties.reduce((s,p)=>s+f(p.purchasePrice),0);sections.push({name:'Property',inv:pCost,cur:propVal});}
+            var grandInv=sections.reduce((s,x)=>s+x.inv,0),grandCur=sections.reduce((s,x)=>s+x.cur,0),gPnl=pnl(grandInv,grandCur);
+            if(grandInv===0)return<div style={{fontSize:'11px',color:'#9CA3AF'}}>Add investments to see dashboard</div>;
+            return<div>
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:'10px',padding:'10px',background:'#FFFBEB',borderRadius:'8px',border:'1px solid #D4A01733'}}>
+                <div><div style={{fontSize:'9px',color:'#92710A'}}>TOTAL INVESTED</div><div style={{fontSize:'20px',fontWeight:800,color:'#1F2937'}}>{fmt(grandInv)}</div></div>
+                <div style={{textAlign:'center'}}><div style={{fontSize:'9px',color:'#92710A'}}>CURRENT VALUE</div><div style={{fontSize:'20px',fontWeight:800,color:'#B8860B'}}>{fmt(grandCur)}</div></div>
+                <div style={{textAlign:'right'}}><div style={{fontSize:'9px',color:'#92710A'}}>TOTAL P&L</div><div style={{fontSize:'20px',fontWeight:800,color:gPnl.amt>=0?'#22C55E':'#EF4444'}}>{gPnl.amt>=0?'+':''}{fmt(gPnl.amt)}</div><div style={{fontSize:'10px',color:gPnl.amt>=0?'#22C55E':'#EF4444'}}>{gPnl.pct>=0?'+':''}{gPnl.pct.toFixed(1)}%</div></div>
+              </div>
+              {sections.map(sec=>{var g=pnl(sec.inv,sec.cur);var pctOfTotal=grandCur>0?(sec.cur/grandCur*100).toFixed(0):0;return<div key={sec.name} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px',background:'#F3F4F6',borderRadius:'6px',marginBottom:'4px'}}>
+                <div style={{flex:1}}><div style={{fontSize:'11px',fontWeight:700,color:'#1F2937'}}>{sec.name}</div><div style={{fontSize:'9px',color:'#9CA3AF'}}>{pctOfTotal}% of portfolio</div></div>
+                <div style={{textAlign:'center',flex:1}}><div style={{fontSize:'10px',color:'#9CA3AF'}}>Invested</div><div style={{fontSize:'11px',fontWeight:600,color:'#1F2937'}}>{fmt(sec.inv)}</div></div>
+                <div style={{textAlign:'center',flex:1}}><div style={{fontSize:'10px',color:'#9CA3AF'}}>Current</div><div style={{fontSize:'11px',fontWeight:600,color:'#B8860B'}}>{fmt(sec.cur)}</div></div>
+                <div style={{textAlign:'right',flex:1}}><div style={{fontSize:'10px',color:'#9CA3AF'}}>P&L</div><div style={{fontSize:'11px',fontWeight:700,color:g.amt>=0?'#22C55E':'#EF4444'}}>{g.amt>=0?'+':''}{fmt(g.amt)}</div><div style={{fontSize:'9px',color:g.amt>=0?'#22C55E':'#EF4444'}}>{g.pct>=0?'+':''}{g.pct.toFixed(1)}%</div></div>
+              </div>;})}
+            </div>;
+          })()}
+        </div>
+        <AllocPie segments={allocSegs}/>
           {nps.age&&<div style={S.card}><div style={S.ct}>Age-Based Recommendation</div>
             <Dr label="Your Age" val={nps.age}/>
             <Dr label="Recommended Equity %" val={(100-f(nps.age)).toFixed(0)+'%'} color="#22C55E"/>
@@ -876,4 +962,3 @@ ReactDOM.createRoot(document.getElementById('root')).render(<WealthApp/>);
 </script>
 </body>
 </html>
- 
