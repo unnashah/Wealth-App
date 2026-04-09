@@ -327,7 +327,7 @@ function WealthApp(){
   const annualBonus=(()=>{var e=(taxProfile.entries||[]).filter(x=>x.incomeType==='bonus').sort((a,b)=>(a.year||0)-(b.year||0));return e.length>0?f(e[e.length-1].income):0;})();
   const annualInvestmentIncome=(()=>{return(taxProfile.entries||[]).filter(x=>x.incomeType==='investment'||x.incomeType==='rental'||x.incomeType==='freelance').reduce((s,x)=>s+f(x.income),0);})();
   const fdAnnualPayout=fds.filter(fd=>fd.payout&&fd.payout!=='cumulative').reduce((s,fd)=>s+f(fd.principal)*f(fd.rate)/100,0);
-  const annualRevenue=monthlyTakeHome*12+annualBonus+annualInvestmentIncome+fdAnnualPayout;
+  const annualRevenue=latestCTC+annualBonus+annualInvestmentIncome+fdAnnualPayout;
   const totalTaxableIncome=latestCTC+annualBonus+annualInvestmentIncome+fdAnnualPayout+(()=>{return(taxProfile.entries||[]).filter(x=>x.incomeType==='rental'||x.incomeType==='freelance'||x.incomeType==='other').reduce((s,x)=>s+f(x.income),0);})();
   const latestIncome=monthlyTakeHome>0?monthlyTakeHome*12:latestCTC;
   const slabRate=()=>{const i=totalTaxableIncome||latestCTC||latestIncome;if(taxProfile.regime==='new'){if(i<=400000)return 0;if(i<=800000)return 5;if(i<=1200000)return 10;if(i<=1600000)return 15;if(i<=2000000)return 20;if(i<=2400000)return 25;return 30;}if(i<=250000)return 0;if(i<=500000)return 5;if(i<=1000000)return 20;return 30;};
@@ -463,7 +463,7 @@ function WealthApp(){
             var crInv=crypto.reduce((s,cc)=>s+(cc.isSimple?f(cc.investedTotal):cc.qty*f(cc.buyPrice)),0),crCur=crypto.reduce((s,cc)=>s+(cc.isSimple?f(cc.currentValue||cc.investedTotal):cc.qty*(cc.priceINR||f(cc.buyPrice))),0);
             if(crInv>0||crCur>0)sections.push({name:'Crypto',inv:crInv,cur:crCur});
             if(metalVal()>0){var mCost=metalItems.reduce((s,i)=>s+f(i.cost),0);sections.push({name:'Metals',inv:mCost||metalVal(),cur:metalVal()});}
-            var fdTotP=fds.reduce((s,fd)=>s+f(fd.principal),0);if(fdTotP>0)sections.push({name:'FDs',inv:fdTotP,cur:fdTotP});
+            var fdTotP=fds.reduce((s,fd)=>s+f(fd.principal),0);if(fdTotP>0){var fdCurV=fds.reduce((s,fd)=>{return s+(fd.payout&&fd.payout!=='cumulative'?f(fd.principal):calcFD(fd.principal,fd.rate,daysBetween(fd.startDate,fd.maturityDate),fd.compounding));},0);sections.push({name:'FDs',inv:fdTotP,cur:fdCurV});}
             if(f(ppf.balance)>0)sections.push({name:'PPF',inv:f(ppf.balance),cur:f(ppf.balance)});
             if(sgbVal()>0){var sgbInv2=sgbs.reduce((s,b)=>s+f(b.purchasePrice)*f(b.grams),0);sections.push({name:'SGB',inv:sgbInv2,cur:sgbVal()});}
             var longTerm=[];
@@ -487,7 +487,7 @@ function WealthApp(){
             <Dr label="Monthly Take Home" val={fmt(monthlyTakeHome)} bold/>
             {annualBonus>0&&<Dr label="Annual Bonus" val={fmt(annualBonus)} color="#A855F7"/>}
             {fdAnnualPayout>0&&<Dr label="FD Payouts (annual)" val={fmt(fdAnnualPayout)} color="#22C55E"/>}
-            {(()=>{var m=new Date().getMonth(),y=new Date().getFullYear(),fy=m>=3?'FY'+y.toString().slice(2)+'-'+(y+1).toString().slice(2):'FY'+(y-1).toString().slice(2)+'-'+y.toString().slice(2);return<div style={{padding:'8px',background:'#FFFBEB',borderRadius:'6px',margin:'6px 0',border:'1px solid #D4A01733'}}><div style={{fontSize:'10px',color:'#92710A',marginBottom:'2px'}}>Annual Revenue ({fy})</div><div style={{fontSize:'14px',fontWeight:800,color:'#22C55E'}}>{fmt(monthlyTakeHome*12)} + {fmt(annualBonus)}{fdAnnualPayout>0?' + '+fmt(fdAnnualPayout):''} = {fmt(annualRevenue)}</div></div>;})()}
+            {(()=>{var m=new Date().getMonth(),y=new Date().getFullYear(),fy=m>=3?'FY'+y.toString().slice(2)+'-'+(y+1).toString().slice(2):'FY'+(y-1).toString().slice(2)+'-'+y.toString().slice(2);return<div style={{padding:'8px',background:'#FFFBEB',borderRadius:'6px',margin:'6px 0',border:'1px solid #D4A01733'}}><div style={{fontSize:'10px',color:'#92710A',marginBottom:'2px'}}>Annual Revenue ({fy})</div><div style={{fontSize:'14px',fontWeight:800,color:'#22C55E'}}>{fmt(latestCTC)} + {fmt(annualBonus)}{fdAnnualPayout>0?' + '+fmt(fdAnnualPayout):''} = {fmt(annualRevenue)}</div></div>;})()}
             <div style={{borderTop:'1px solid #E5E7EB',margin:'8px 0',fontSize:'9px',color:'#92710A',paddingTop:'6px',letterSpacing:'1px'}}>MONTHLY OUTFLOWS</div>
             <Dr label="EMIs" val={fmt(emiTotal)} color="#EF4444"/>
             <Dr label="SIPs" val={fmt(sipTotal)} color="#3B82F6"/>
@@ -595,34 +595,22 @@ function WealthApp(){
           {metalVal()>0&&<div style={{...S.cardG,textAlign:'center'}}><div style={{fontSize:'9px',color:'#92710A'}}>TOTAL METALS</div><div style={{fontSize:'22px',fontWeight:800,color:'#B8860B'}}>{fmt(metalVal())}</div></div>}
  
           {/* SGB */}
-          <div style={S.card}><div style={S.ct}>Sovereign Gold Bonds</div>
-            <div style={S.row2}><button style={S.chip(sgb.purchaseType==='primary')} onClick={()=>uSgb({...sgb,purchaseType:'primary'})}>Primary</button><button style={S.chip(sgb.purchaseType==='secondary')} onClick={()=>uSgb({...sgb,purchaseType:'secondary'})}>Secondary</button></div>
-            <Inp label="Grams" value={sgb.grams} onChange={e=>uSgb({...sgb,grams:e.target.value})}/>
-            <Inp label="Buy price/g" value={sgb.purchasePrice} onChange={e=>uSgb({...sgb,purchasePrice:e.target.value})}/>
-            <div style={_lblS}>Purchase Date</div><input style={{..._inpS,marginBottom:'8px'}} type="date" value={sgb.purchaseDate} onChange={e=>uSgb({...sgb,purchaseDate:e.target.value})}/>
-            {sgb.grams&&sgb.purchaseDate&&<div style={{padding:'10px',background:'#F3F4F6',borderRadius:'10px'}}>
-              <Dr label="Current Value" val={fmt(sgbVal())}/><Dr label="Maturity (8yr)" val={fmtDate(sgbMatDate)}/><Dr label="Interest (2.5%PA)" val={fmt(sgbInterestEarned)} color="#22C55E"/>
-              {sgb.purchasePrice&&<Dr label="Capital Gain" val={fmt(sgbVal()-f(sgb.purchasePrice)*f(sgb.grams))} color={gc(sgbVal(),f(sgb.purchasePrice)*f(sgb.grams))}/>}
-              <Dr label="Lock-in" val={sgbYrs>=5?'Unlocked':(5-sgbYrs).toFixed(1)+'yr left'} color={sgbYrs>=5?'#22C55E':'#B8860B'}/>
-              {sgb.purchaseType==='primary'&&sgbYrs>=8&&<InfoBox color="#22C55E" bg="#F0FDF4">Matured! Zero capital gains tax.</InfoBox>}
-              {sgb.purchaseType==='primary'&&sgbYrs<8&&sgbYrs>=5&&<InfoBox>Early exit available. LTCG@12.5%. Hold {(8-sgbYrs).toFixed(1)}yr for zero tax.</InfoBox>}
-              {sgb.purchaseType==='primary'&&sgbYrs<5&&<InfoBox>Locked. 2.5% interest paid semi-annually (taxable at slab).</InfoBox>}
-              {sgb.purchaseType==='secondary'&&<InfoBox color="#EF4444" bg="#FEF2F2">Secondary: LTCG@12.5% always.</InfoBox>}
-            {sgbs.length>1&&<div style={{marginTop:'8px'}}><div style={{fontSize:'10px',color:'#92710A',fontWeight:700,marginBottom:'4px'}}>OTHER SGBs</div>
-            {sgbs.slice(1).map((b,i)=>{var curV=f(b.grams)*(prices.gold24k||0);return<div key={b.id||i} style={{padding:'6px',background:'#F3F4F6',borderRadius:'6px',marginBottom:'3px'}}><div style={{display:'flex',justifyContent:'space-between'}}><div><div style={{fontSize:'11px',fontWeight:700,color:'#B8860B'}}>{b.name||'SGB '+(i+2)} ({b.grams}g)</div><div style={{fontSize:'10px',color:'#9CA3AF'}}>{fmtDate(b.purchaseDate)}</div></div><div style={{textAlign:'right'}}><div style={{fontSize:'12px',fontWeight:700,color:'#B8860B'}}>{fmt(curV)}</div></div></div><button style={{background:'none',border:'none',color:'#D1D5DB',fontSize:'10px',cursor:'pointer'}} onClick={()=>{var a2=sgbs.filter((_,idx)=>idx!==i+1);setSgbs(a2);dSave('w_sgbs',a2);pushSync();}}>remove</button></div>;})}
-            </div>}
-            {!addingExtraSgb?<button style={{...S.addBtn,background:'#F3F4F6',color:'#92710A',fontSize:'10px',padding:'7px',marginTop:'4px'}} onClick={()=>setAddingExtraSgb(true)}>+ Add Another SGB</button>
+          <div style={S.card}><div style={S.ct}>Sovereign Gold Bonds ({sgbs.length})</div>
+            {sgbs.slice().sort((a,b)=>new Date(a.purchaseDate||0)-new Date(b.purchaseDate||0)).map((b,bi)=>{var matD=b.purchaseDate?addYears(b.purchaseDate,8):'';var yrs=b.purchaseDate?yearsBetween(b.purchaseDate,todayStr()):0;var curV=f(b.grams)*(prices.gold24k||0);var inv=f(b.purchasePrice)*f(b.grams);var g=pnl(inv,curV);return<div key={b.id||bi} style={{padding:'8px',background:'#F3F4F6',borderRadius:'8px',marginBottom:'4px'}}>
+              <div style={{display:'flex',justifyContent:'space-between'}}><div><div style={{fontSize:'12px',fontWeight:700,color:'#B8860B'}}>{b.name||'SGB '+(bi+1)} ({b.grams}g)</div><div style={{fontSize:'10px',color:'#9CA3AF'}}>{b.purchaseType}{b.bankName?' via '+b.bankName:''}{b.purchaseDate?' '+fmtDate(b.purchaseDate):''}</div></div><div style={{textAlign:'right'}}><div style={{fontSize:'14px',fontWeight:800,color:'#B8860B'}}>{fmt(curV)}</div><div style={{fontSize:'10px',color:g.amt>=0?'#22C55E':'#EF4444'}}>{g.amt>=0?'+':''}{fmt(g.amt)}</div></div></div>
+              <Dr label="Invested" val={fmt(inv)}/><Dr label="Maturity" val={fmtDate(matD)}/><Dr label="Lock-in" val={yrs>=5?'Unlocked':(5-yrs).toFixed(1)+'yr left'} color={yrs>=5?'#22C55E':'#B8860B'}/>
+              <IA onEdit={()=>{setExtraSgb({name:b.name||'',grams:String(b.grams||''),purchasePrice:String(b.purchasePrice||''),purchaseDate:b.purchaseDate||'',interestRate:String(b.interestRate||'2.5'),bankName:b.bankName||'',purchaseType:b.purchaseType||'primary',_editId:b.id});setAddingExtraSgb(true);}} onRemove={()=>{var a2=sgbs.filter(x=>x.id!==b.id);setSgbs(a2);dSave('w_sgbs',a2);pushSync();}}/>
+            </div>;})}
+            {!addingExtraSgb?<button style={S.addBtn} onClick={()=>{setExtraSgb({name:'',grams:'',purchasePrice:'',purchaseDate:'',interestRate:'2.5',bankName:'',purchaseType:'primary'});setAddingExtraSgb(true);}}>+ Add SGB</button>
             :<div style={{padding:'8px',background:'#FFFBEB',borderRadius:'8px',marginTop:'4px',border:'1px solid #D4A01733'}}>
               <Inp label="Series/Name" value={extraSgb.name} onChange={e=>setExtraSgb(p=>({...p,name:e.target.value}))} type="text" placeholder="SGB 2024-25 Series I"/>
+              <div style={S.row2}><button style={S.chip(extraSgb.purchaseType==='primary')} onClick={()=>setExtraSgb(p=>({...p,purchaseType:'primary'}))}>Primary</button><button style={S.chip(extraSgb.purchaseType==='secondary')} onClick={()=>setExtraSgb(p=>({...p,purchaseType:'secondary'}))}>Secondary</button></div>
               <div style={S.row2}><div style={{flex:1}}><Inp label="Grams" value={extraSgb.grams} onChange={e=>setExtraSgb(p=>({...p,grams:e.target.value}))}/></div><div style={{flex:1}}><Inp label="Buy price/g" value={extraSgb.purchasePrice} onChange={e=>setExtraSgb(p=>({...p,purchasePrice:e.target.value}))}/></div></div>
               <div style={_lblS}>Purchase Date</div><input style={{..._inpS,marginBottom:'8px'}} type="date" value={extraSgb.purchaseDate} onChange={e=>setExtraSgb(p=>({...p,purchaseDate:e.target.value}))}/>
               <div style={S.row2}><div style={{flex:1}}><Inp label="Interest %" value={extraSgb.interestRate} onChange={e=>setExtraSgb(p=>({...p,interestRate:e.target.value}))}/></div><div style={{flex:1}}><Inp label="Bank" value={extraSgb.bankName} onChange={e=>setExtraSgb(p=>({...p,bankName:e.target.value}))} type="text"/></div></div>
-              <div style={S.row2}><button style={{...S.addBtn,flex:1,marginTop:0}} onClick={()=>{if(!extraSgb.grams||!extraSgb.purchasePrice)return;var a2=[...sgbs,{id:Date.now()+Math.random(),...extraSgb,grams:f(extraSgb.grams),purchasePrice:f(extraSgb.purchasePrice)}];setSgbs(a2);dSave('w_sgbs',a2);pushSync();setExtraSgb({name:'',grams:'',purchasePrice:'',purchaseDate:'',interestRate:'2.5',bankName:'',purchaseType:'primary'});setAddingExtraSgb(false);}}>Add</button><button style={{...S.addBtn,flex:1,marginTop:0,background:'#E5E7EB',color:'#6B7280'}} onClick={()=>setAddingExtraSgb(false)}>Cancel</button></div></div>}
+              <div style={S.row2}><button style={{...S.addBtn,flex:1,marginTop:0}} onClick={()=>{if(!extraSgb.grams||!extraSgb.purchasePrice)return;if(extraSgb._editId){var a2=sgbs.map(x=>x.id===extraSgb._editId?{...x,name:extraSgb.name,grams:f(extraSgb.grams),purchasePrice:f(extraSgb.purchasePrice),purchaseDate:extraSgb.purchaseDate,interestRate:extraSgb.interestRate,bankName:extraSgb.bankName,purchaseType:extraSgb.purchaseType}:x);setSgbs(a2);dSave('w_sgbs',a2);}else{var a3=[...sgbs,{id:Date.now()+Math.random(),name:extraSgb.name,grams:f(extraSgb.grams),purchasePrice:f(extraSgb.purchasePrice),purchaseDate:extraSgb.purchaseDate,interestRate:extraSgb.interestRate,bankName:extraSgb.bankName,purchaseType:extraSgb.purchaseType}];setSgbs(a3);dSave('w_sgbs',a3);}pushSync();setExtraSgb({name:'',grams:'',purchasePrice:'',purchaseDate:'',interestRate:'2.5',bankName:'',purchaseType:'primary'});setAddingExtraSgb(false);}}>{extraSgb._editId?'Update':'Add'}</button><button style={{...S.addBtn,flex:1,marginTop:0,background:'#E5E7EB',color:'#6B7280'}} onClick={()=>setAddingExtraSgb(false)}>Cancel</button></div>
             </div>}
           </div>
-        </div>}
- 
-        {subTab==='govt'&&<div>
           <div style={S.card}><div style={S.ct}>PPF</div>
             <Inp label="Balance" value={ppf.balance} onChange={e=>uPpf({...ppf,balance:e.target.value})}/><Inp label="Monthly Contrib" value={ppf.monthlyContrib} onChange={e=>uPpf({...ppf,monthlyContrib:e.target.value})}/>
             <div style={_lblS}>Start Date</div><input style={{..._inpS,marginBottom:'8px'}} type="date" value={ppf.startDate} onChange={e=>uPpf({...ppf,startDate:e.target.value})}/>
@@ -759,7 +747,7 @@ function WealthApp(){
             var crInv=crypto.reduce((s,cc)=>s+(cc.isSimple?f(cc.investedTotal):cc.qty*f(cc.buyPrice)),0),crCur=crypto.reduce((s,cc)=>s+(cc.isSimple?f(cc.currentValue||cc.investedTotal):cc.qty*(cc.priceINR||f(cc.buyPrice))),0);
             if(crInv>0||crCur>0)sections.push({name:'Crypto',inv:crInv,cur:crCur});
             if(metalVal()>0){var mCost=metalItems.reduce((s,i)=>s+f(i.cost),0);sections.push({name:'Metals',inv:mCost||metalVal(),cur:metalVal()});}
-            var fdTotP=fds.reduce((s,fd)=>s+f(fd.principal),0);if(fdTotP>0)sections.push({name:'FDs',inv:fdTotP,cur:fdTotP});
+            var fdTotP=fds.reduce((s,fd)=>s+f(fd.principal),0);if(fdTotP>0){var fdCurV=fds.reduce((s,fd)=>{return s+(fd.payout&&fd.payout!=='cumulative'?f(fd.principal):calcFD(fd.principal,fd.rate,daysBetween(fd.startDate,fd.maturityDate),fd.compounding));},0);sections.push({name:'FDs',inv:fdTotP,cur:fdCurV});}
             if(f(ppf.balance)>0)sections.push({name:'PPF',inv:f(ppf.balance),cur:f(ppf.balance)});
             if(sgbVal()>0){var sgbInv2=sgbs.reduce((s,b)=>s+f(b.purchasePrice)*f(b.grams),0);sections.push({name:'SGB',inv:sgbInv2,cur:sgbVal()});}
             var longTerm=[];
@@ -851,10 +839,7 @@ function WealthApp(){
           :<div style={{background:'#FFFBEB',borderRadius:'8px',padding:'8px',marginTop:'4px',border:'1px solid #D4A01744'}}><Inp label="Asset" value={newCG.asset} onChange={e=>setNewCG(p=>({...p,asset:e.target.value}))} type="text" placeholder="RELIANCE, SBI MF..."/><div style={{display:'flex',gap:'4px',marginBottom:'8px'}}>{[['equity','Equity'],['debt','Debt'],['property','Property'],['gold','Gold'],['crypto','Crypto']].map(([v,l])=><button key={v} style={S.chip(newCG.assetType===v)} onClick={()=>setNewCG(p=>({...p,assetType:v}))}>{l}</button>)}</div><div style={S.row2}><div style={{flex:1}}><div style={_lblS}>Purchase Date</div><input style={_inpS} type="date" value={newCG.purchaseDate} onChange={e=>{var pd=e.target.value;setNewCG(p=>{var u={...p,purchaseDate:pd};if(p.date&&pd){u.holdingDays=String(daysBetween(pd,p.date));}return u;});}}/></div><div style={{flex:1}}><div style={_lblS}>Sale Date</div><input style={_inpS} type="date" value={newCG.date} onChange={e=>{var sd=e.target.value;setNewCG(p=>{var u={...p,date:sd};if(p.purchaseDate&&sd){u.holdingDays=String(daysBetween(p.purchaseDate,sd));}if(sd){var m=new Date(sd).getMonth();var y=new Date(sd).getFullYear();u.fy=m>=3?y+'-'+(y+1):(y-1)+'-'+y;}return u;});}}/></div></div><div style={S.row2}><div style={{flex:1}}><Inp label="Holding Days" value={newCG.holdingDays} onChange={e=>setNewCG(p=>({...p,holdingDays:e.target.value}))}/></div><div style={{flex:1}}><Inp label="FY" value={newCG.fy} onChange={e=>setNewCG(p=>({...p,fy:e.target.value}))} type="text" placeholder="2025-2026"/></div></div><div style={S.row2}><div style={{flex:1}}><Inp label="Buy Price/unit" value={newCG.buyPrice} onChange={e=>setNewCG(p=>({...p,buyPrice:e.target.value}))}/></div><div style={{flex:1}}><Inp label="Sell Price/unit" value={newCG.sellPrice} onChange={e=>setNewCG(p=>({...p,sellPrice:e.target.value}))}/></div></div><Inp label="Qty" value={newCG.qty} onChange={e=>setNewCG(p=>({...p,qty:e.target.value}))}/><div style={S.row2}><button style={{...S.addBtn,flex:1,marginTop:0}} onClick={()=>{if(!newCG.asset)return;uCG([...capitalGains,{id:Date.now()+Math.random(),...newCG}]);setNewCG({date:'',purchaseDate:'',asset:'',assetType:'equity',buyPrice:'',sellPrice:'',qty:'',holdingDays:'',fy:''});setAddingCG(false);}}>Log</button><button style={{...S.addBtn,flex:1,marginTop:0,background:'#E5E7EB',color:'#6B7280'}} onClick={()=>setAddingCG(false)}>Cancel</button></div></div>}
         </div>
  
-        {/* Advance Tax */}
-        <div style={S.card}><div style={S.ct}>Advance Tax Calendar</div>
-          {[['Jun 15','15% of tax'],['Sep 15','45% cumulative'],['Dec 15','75% cumulative'],['Mar 15','100% cumulative']].map(([d,p])=><Dr key={d} label={d} val={p} color="#888"/>)}
-        </div>
+        
  
         <div style={S.card}><div style={S.ct}>Tips</div>{[['Harvest \u20B91.25L LTCG','Sell & rebuy before Mar 31. Tax-free.'],['SGB 8yr hold','Zero CG tax for original subscribers.'],['EPF 5yr rule','TDS 10% if withdrawn early.'],['NPS \u20B950K extra','80CCD(1B) old regime only.'],['PPF EEE','Contribute, interest, maturity \u2014 all tax-free.'],['ITR by Jul 31','Losses expire without filing.']].map(p=><div key={p[0]} style={{marginBottom:'6px',paddingBottom:'6px',borderBottom:'1px solid #E5E7EB'}}><div style={{fontSize:'11px',fontWeight:700,color:'#B8860B'}}>{p[0]}</div><div style={{fontSize:'10px',color:'#6B7280'}}>{p[1]}</div></div>)}</div>
       </div>}
@@ -868,3 +853,4 @@ ReactDOM.createRoot(document.getElementById('root')).render(<WealthApp/>);
 </script>
 </body>
 </html>
+ 
