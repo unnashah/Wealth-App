@@ -307,7 +307,7 @@ function WealthApp(){
   const sgbVal=()=>sgbs.reduce((s,b)=>s+f(b.grams)*(prices.gold24k||0),0);
   
   
-  const sgbInterestEarned=f(sgb.purchasePrice)*f(sgb.grams)*0.025*sgbYrs;
+  
   const cryptoVal=crypto.reduce((s,c)=>s+f(c.qty)*(c.priceINR||0),0);
   const cryptoCost=crypto.reduce((s,c)=>s+f(c.qty)*f(c.buyPrice),0);
   const mfVal=mfHoldings.reduce((s,h)=>s+h.units*(h.currentNav||0),0);
@@ -365,7 +365,7 @@ function WealthApp(){
     // SIP debits next 7 days
     sips.filter(s=>s.status==='active'&&s.debitDate).forEach(s=>{const d=parseInt(s.debitDate);const now=today.getDate();if(d>=now&&d<=now+7)alerts.push({icon:'\uD83D\uDD04',text:s.name+' SIP debit on '+d+'th (\u20B9'+f(s.amount).toLocaleString('en-IN')+')',color:'#3B82F6'});});
     // SGB maturity
-    if(sgbMatDate){const left=daysLeft(sgbMatDate);if(left>0&&left<=90)alerts.push({icon:'\uD83D\uDCDC',text:'SGB matures in '+left+' days ('+fmtDate(sgbMatDate)+')',color:'#B8860B'});}
+    sgbs.forEach(b=>{if(b.purchaseDate){var matD=addYears(b.purchaseDate,8);var left=daysLeft(matD);if(left>0&&left<=90)alerts.push({icon:'\uD83D\uDCDC',text:(b.name||'SGB')+' matures in '+left+' days',color:'#B8860B'});}});
     // PPF deadline (March)
     if(today.getMonth()>=1&&today.getMonth()<=2&&ppf.balance)alerts.push({icon:'\uD83D\uDCB0',text:'PPF contribution deadline: March 31. Max \u20B91.5L/year.',color:'#B8860B'});
     // ITR deadline
@@ -815,3 +815,4 @@ ReactDOM.createRoot(document.getElementById('root')).render(<WealthApp/>);
 </script>
 </body>
 </html>
+ 
