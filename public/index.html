@@ -167,6 +167,10 @@ function WealthApp(){
   const [mfHoldings,setMfHoldings]=useState(()=>load('w_mf',[]));
   const [addingMf,setAddingMf]=useState(false);
   const [expandMf,setExpandMf]=useState(false);
+  const [expandLoan,setExpandLoan]=useState(false);
+  const [expandSips,setExpandSips]=useState(false);
+  const [addingExtraSgb,setAddingExtraSgb]=useState(false);
+  const [extraSgb,setExtraSgb]=useState({name:'',grams:'',purchasePrice:'',purchaseDate:'',interestRate:'2.5',bankName:'',purchaseType:'primary'});
   const [expandStocks,setExpandStocks]=useState(false);
   const [expandCrypto,setExpandCrypto]=useState(false);
   const [newMf,setNewMf]=useState({schemeCode:'',schemeName:'',units:'',avgNav:'',type:'equity',purchaseDate:''});
@@ -453,11 +457,11 @@ function WealthApp(){
           {(()=>{
             var sections=[];
             var mfInv=mfHoldings.reduce((s,h)=>s+h.units*h.avgNav,0),mfCur=mfHoldings.reduce((s,h)=>s+h.units*(h.currentNav||h.avgNav),0);
-            if(mfInv>0)sections.push({name:'Mutual Funds',inv:mfInv,cur:mfCur});
+            if(mfInv>0||mfCur>0)sections.push({name:'Mutual Funds',inv:mfInv,cur:mfCur});
             var stInv=stocks.reduce((s,h)=>s+h.qty*h.avgPrice,0),stCur=stocks.reduce((s,h)=>s+h.qty*(h.currentPrice||h.avgPrice),0);
             if(stInv>0)sections.push({name:'Stocks',inv:stInv,cur:stCur});
             var crInv=crypto.reduce((s,cc)=>s+(cc.isSimple?f(cc.investedTotal):cc.qty*f(cc.buyPrice)),0),crCur=crypto.reduce((s,cc)=>s+(cc.isSimple?f(cc.currentValue||cc.investedTotal):cc.qty*(cc.priceINR||f(cc.buyPrice))),0);
-            if(crInv>0)sections.push({name:'Crypto',inv:crInv,cur:crCur});
+            if(crInv>0||crCur>0)sections.push({name:'Crypto',inv:crInv,cur:crCur});
             if(metalVal()>0){var mCost=metalItems.reduce((s,i)=>s+f(i.cost),0);sections.push({name:'Metals',inv:mCost||metalVal(),cur:metalVal()});}
             var fdTotP=fds.reduce((s,fd)=>s+f(fd.principal),0);if(fdTotP>0)sections.push({name:'FDs',inv:fdTotP,cur:fdTotP});
             if(f(ppf.balance)>0)sections.push({name:'PPF',inv:f(ppf.balance),cur:f(ppf.balance)});
@@ -496,7 +500,7 @@ function WealthApp(){
         {/* Emergency Fund */}
         {monthlyExpenses&&<div style={S.card}><div style={S.ct}>Emergency Fund</div>
           <Dr label="6 months expenses" val={fmt(emergencyFundNeeded)}/>
-          <InfoBox>{f(monthlyExpenses)*6>fdVal+f(ppf.balance)?'You may need more liquid reserves. FDs + liquid MFs should cover 6 months of expenses (\u20B9'+f(emergencyFundNeeded).toLocaleString('en-IN')+')':'Your FDs and govt scheme balances provide a safety net. Ensure \u20B9'+f(emergencyFundNeeded).toLocaleString('en-IN')+' is easily accessible within 24-48 hours.'}</InfoBox>
+          <InfoBox>{(()=>{var liqFd=fds.reduce((s,fd)=>s+(fd.payout&&fd.payout!=='cumulative'?f(fd.principal):calcFD(fd.principal,fd.rate,daysBetween(fd.startDate,todayStr()),fd.compounding)),0);return f(monthlyExpenses)*6>liqFd;})()?'You may need more liquid reserves. FDs + liquid MFs should cover 6 months of expenses (\u20B9'+f(emergencyFundNeeded).toLocaleString('en-IN')+')':'Your FDs provide an accessible safety net. Ensure \u20B9'+f(emergencyFundNeeded).toLocaleString('en-IN')+' is easily accessible within 24-48 hours.'}</InfoBox>
         </div>}
  
         {/* Debt */}
@@ -521,7 +525,8 @@ function WealthApp(){
             </div>
           )})}
           {totalDebt>0&&<Dr label="Total Debt" val={fmt(totalDebt)} color="#EF4444" bold/>}
-          {debts.filter(d=>d.type==='homeloan').map((d,hi)=>{const la=loanAnalysis(d);const resets=d.rateResets||[];const annualInt=f(d.outstanding)*f(d.interestRate)/100;return<div key={'la'+hi} style={{padding:'14px',background:'#F9FAFB',borderRadius:'12px',marginBottom:'10px',border:'1px solid #E5E7EB'}}>
+          {debts.filter(d=>d.type==='homeloan').length>0&&<div onClick={()=>setExpandLoan(!expandLoan)} style={{display:'flex',justifyContent:'space-between',cursor:'pointer',padding:'8px',background:'#F9FAFB',borderRadius:'6px',marginBottom:'4px'}}><span style={{fontSize:'11px',color:'#92710A',fontWeight:700}}>Loan Details</span><span style={{color:'#92710A'}}>{expandLoan?'\u25B2':'\u25BC'}</span></div>}
+          {expandLoan&&debts.filter(d=>d.type==='homeloan').map((d,hi)=>{const la=loanAnalysis(d);const resets=d.rateResets||[];const annualInt=f(d.outstanding)*f(d.interestRate)/100;return<div key={'la'+hi} style={{padding:'14px',background:'#F9FAFB',borderRadius:'12px',marginBottom:'10px',border:'1px solid #E5E7EB'}}>
             <div style={{fontSize:'13px',fontWeight:800,color:'#B8860B',marginBottom:'10px'}}>{d.name} Complete Loan Picture</div>
             <Dr label="Disbursement Date" val={fmtDate(d.startDate)}/><Dr label="Original Loan" val={fmt(f(d.originalAmount))}/><Dr label="Loan Type" val={d.loanType==='fixed'?'Fixed':'Floating'}/>
             <Dr label="Original Rate" val={(d.originalRate||d.interestRate)+'%'}/><Dr label="Current Rate" val={d.interestRate+'%'} color={resets.length>0?'#B8860B':'#6B7280'} bold/>
@@ -606,7 +611,13 @@ function WealthApp(){
             {sgbs.length>1&&<div style={{marginTop:'8px'}}><div style={{fontSize:'10px',color:'#92710A',fontWeight:700,marginBottom:'4px'}}>OTHER SGBs</div>
             {sgbs.slice(1).map((b,i)=>{var curV=f(b.grams)*(prices.gold24k||0);return<div key={b.id||i} style={{padding:'6px',background:'#F3F4F6',borderRadius:'6px',marginBottom:'3px'}}><div style={{display:'flex',justifyContent:'space-between'}}><div><div style={{fontSize:'11px',fontWeight:700,color:'#B8860B'}}>{b.name||'SGB '+(i+2)} ({b.grams}g)</div><div style={{fontSize:'10px',color:'#9CA3AF'}}>{fmtDate(b.purchaseDate)}</div></div><div style={{textAlign:'right'}}><div style={{fontSize:'12px',fontWeight:700,color:'#B8860B'}}>{fmt(curV)}</div></div></div><button style={{background:'none',border:'none',color:'#D1D5DB',fontSize:'10px',cursor:'pointer'}} onClick={()=>{var a2=sgbs.filter((_,idx)=>idx!==i+1);setSgbs(a2);dSave('w_sgbs',a2);pushSync();}}>remove</button></div>;})}
             </div>}
-            <button style={{...S.addBtn,background:'#F3F4F6',color:'#92710A',fontSize:'10px',padding:'7px',marginTop:'4px'}} onClick={()=>{var name=prompt('SGB Name (e.g. SGB 2024-25 Series I):');if(!name)return;var grams=prompt('Grams:');if(!grams)return;var price=prompt('Buy price per gram:');if(!price)return;var date=prompt('Purchase date (YYYY-MM-DD):');var bank=prompt('Bank (optional):');var a2=[...sgbs,{id:Date.now()+Math.random(),name:name,grams:f(grams),purchasePrice:f(price),purchaseDate:date||'',purchaseType:'primary',interestRate:'2.5',bankName:bank||''}];setSgbs(a2);dSave('w_sgbs',a2);pushSync();}}>+ Add Another SGB</button>
+            {!addingExtraSgb?<button style={{...S.addBtn,background:'#F3F4F6',color:'#92710A',fontSize:'10px',padding:'7px',marginTop:'4px'}} onClick={()=>setAddingExtraSgb(true)}>+ Add Another SGB</button>
+            :<div style={{padding:'8px',background:'#FFFBEB',borderRadius:'8px',marginTop:'4px',border:'1px solid #D4A01733'}}>
+              <Inp label="Series/Name" value={extraSgb.name} onChange={e=>setExtraSgb(p=>({...p,name:e.target.value}))} type="text" placeholder="SGB 2024-25 Series I"/>
+              <div style={S.row2}><div style={{flex:1}}><Inp label="Grams" value={extraSgb.grams} onChange={e=>setExtraSgb(p=>({...p,grams:e.target.value}))}/></div><div style={{flex:1}}><Inp label="Buy price/g" value={extraSgb.purchasePrice} onChange={e=>setExtraSgb(p=>({...p,purchasePrice:e.target.value}))}/></div></div>
+              <div style={_lblS}>Purchase Date</div><input style={{..._inpS,marginBottom:'8px'}} type="date" value={extraSgb.purchaseDate} onChange={e=>setExtraSgb(p=>({...p,purchaseDate:e.target.value}))}/>
+              <div style={S.row2}><div style={{flex:1}}><Inp label="Interest %" value={extraSgb.interestRate} onChange={e=>setExtraSgb(p=>({...p,interestRate:e.target.value}))}/></div><div style={{flex:1}}><Inp label="Bank" value={extraSgb.bankName} onChange={e=>setExtraSgb(p=>({...p,bankName:e.target.value}))} type="text"/></div></div>
+              <div style={S.row2}><button style={{...S.addBtn,flex:1,marginTop:0}} onClick={()=>{if(!extraSgb.grams||!extraSgb.purchasePrice)return;var a2=[...sgbs,{id:Date.now()+Math.random(),...extraSgb,grams:f(extraSgb.grams),purchasePrice:f(extraSgb.purchasePrice)}];setSgbs(a2);dSave('w_sgbs',a2);pushSync();setExtraSgb({name:'',grams:'',purchasePrice:'',purchaseDate:'',interestRate:'2.5',bankName:'',purchaseType:'primary'});setAddingExtraSgb(false);}}>Add</button><button style={{...S.addBtn,flex:1,marginTop:0,background:'#E5E7EB',color:'#6B7280'}} onClick={()=>setAddingExtraSgb(false)}>Cancel</button></div></div>}
             </div>}
           </div>
         </div>}
@@ -742,11 +753,11 @@ function WealthApp(){
           {(()=>{
             var sections=[];
             var mfInv=mfHoldings.reduce((s,h)=>s+h.units*h.avgNav,0),mfCur=mfHoldings.reduce((s,h)=>s+h.units*(h.currentNav||h.avgNav),0);
-            if(mfInv>0)sections.push({name:'Mutual Funds',inv:mfInv,cur:mfCur});
+            if(mfInv>0||mfCur>0)sections.push({name:'Mutual Funds',inv:mfInv,cur:mfCur});
             var stInv=stocks.reduce((s,h)=>s+h.qty*h.avgPrice,0),stCur=stocks.reduce((s,h)=>s+h.qty*(h.currentPrice||h.avgPrice),0);
             if(stInv>0)sections.push({name:'Stocks',inv:stInv,cur:stCur});
             var crInv=crypto.reduce((s,cc)=>s+(cc.isSimple?f(cc.investedTotal):cc.qty*f(cc.buyPrice)),0),crCur=crypto.reduce((s,cc)=>s+(cc.isSimple?f(cc.currentValue||cc.investedTotal):cc.qty*(cc.priceINR||f(cc.buyPrice))),0);
-            if(crInv>0)sections.push({name:'Crypto',inv:crInv,cur:crCur});
+            if(crInv>0||crCur>0)sections.push({name:'Crypto',inv:crInv,cur:crCur});
             if(metalVal()>0){var mCost=metalItems.reduce((s,i)=>s+f(i.cost),0);sections.push({name:'Metals',inv:mCost||metalVal(),cur:metalVal()});}
             var fdTotP=fds.reduce((s,fd)=>s+f(fd.principal),0);if(fdTotP>0)sections.push({name:'FDs',inv:fdTotP,cur:fdTotP});
             if(f(ppf.balance)>0)sections.push({name:'PPF',inv:f(ppf.balance),cur:f(ppf.balance)});
@@ -857,4 +868,3 @@ ReactDOM.createRoot(document.getElementById('root')).render(<WealthApp/>);
 </script>
 </body>
 </html>
- 
