@@ -126,6 +126,10 @@ function WealthApp(){
   const [subTab,setSubTab]=useState('overview');
   const [refreshing,setRefreshing]=useState(false);
   const [showSettings,setShowSettings]=useState(false);
+  const [subs,setSubs]=useState(()=>load('w_subs',[]));
+  const uSubs=v=>{setSubs(v);save('w_subs',v);pushSync();};
+  const [addingSub,setAddingSub]=useState(false);
+  const [newSub,setNewSub]=useState({name:'',amount:'',frequency:'monthly',source:'',notes:'',status:'active',category:'subscription'});
  
   // Prices
   const [prices,setPrices]=useState(()=>load('w_prices',{gold24k:9500,gold22k:8700,gold18k:7125,silver:105,updated:null}));
@@ -255,7 +259,7 @@ function WealthApp(){
   // Sync
   const [syncStatus,setSyncStatus]=useState('');
   const syncTimer=useRef(null);
-  const getAllData=()=>{const keys=['w_prices','w_metalItems','w_sgbs','w_sgb','w_ppf','w_nps','w_epf','w_tax','w_crypto','w_mf','w_sips','w_stocks','w_fds','w_debts','w_props','w_ins','w_goals','w_expenses','w_nominees','w_docs','w_cg','w_nwhistory','w_pin'];const d={};keys.forEach(k=>{try{const v=localStorage.getItem(k);if(v)d[k]=JSON.parse(v);}catch{}});return d;};
+  const getAllData=()=>{const keys=['w_prices','w_metalItems','w_sgbs','w_sgb','w_ppf','w_nps','w_epf','w_tax','w_crypto','w_mf','w_sips','w_stocks','w_fds','w_debts','w_props','w_ins','w_goals','w_expenses','w_nominees','w_docs','w_cg','w_subs','w_nwhistory','w_pin'];const d={};keys.forEach(k=>{try{const v=localStorage.getItem(k);if(v)d[k]=JSON.parse(v);}catch{}});return d;};
   const pushSync=()=>{const pin=load('w_pin',null);if(!pin)return;clearTimeout(syncTimer.current);syncTimer.current=setTimeout(async()=>{try{setSyncStatus('syncing');const r=await fetch('/api/sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin,action:'push',data:getAllData()})});if(r.ok)setSyncStatus('synced');else setSyncStatus('error');}catch{setSyncStatus('error');}setTimeout(()=>setSyncStatus(''),3000);},2000);};
   const pullSync=async()=>{const pin=load('w_pin',null);if(!pin)return false;try{setSyncStatus('pulling');const r=await fetch('/api/sync?pin='+pin+'&action=pull');const j=await r.json();if(j.ok&&j.data){const keys=Object.keys(j.data).filter(k=>k!=='_ts'&&k!=='w_pin');let changed=false;keys.forEach(k=>{const cloud=JSON.stringify(j.data[k]);const local=localStorage.getItem(k);if(cloud!==local){localStorage.setItem(k,cloud);changed=true;}});if(changed){setSyncStatus('loaded from cloud');sessionStorage.setItem('_justPulled','1');location.reload();}else{setSyncStatus('in sync');}setTimeout(()=>setSyncStatus(''),3000);return changed;}setSyncStatus('');return false;}catch{setSyncStatus('error');return false;}};
  
@@ -501,6 +505,24 @@ function WealthApp(){
           <Dr label="6 months expenses" val={fmt(emergencyFundNeeded)}/>
           <InfoBox>{(()=>{var liqFd=fds.reduce((s,fd)=>s+f(fd.principal),0);return f(monthlyExpenses)*6>liqFd;})()?'You may need more liquid reserves. FDs + liquid MFs should cover 6 months of expenses (\u20B9'+f(emergencyFundNeeded).toLocaleString('en-IN')+')':'Your FDs and govt scheme balances provide a safety net. Ensure \u20B9'+f(emergencyFundNeeded).toLocaleString('en-IN')+' is easily accessible within 24-48 hours.'}</InfoBox>
         </div>}
+ 
+        <div style={S.card}><div style={S.ct}>SUBSCRIPTIONS & MEMBERSHIPS</div>
+          {(()=>{var monthlyTotal=subs.filter(s=>s.status==='active').reduce((t,s)=>{var amt=f(s.amount);if(s.frequency==='annual')return t+amt/12;if(s.frequency==='biannual')return t+amt/6;if(s.frequency==='quarterly')return t+amt/3;return t+amt;},0);var annualTotal=monthlyTotal*12;return<div style={{padding:'8px',background:'#FFFBEB',borderRadius:'6px',marginBottom:'8px',border:'1px solid #D4A01733',display:'flex',justifyContent:'space-between'}}><div><div style={{fontSize:'9px',color:'#92710A'}}>MONTHLY BURN</div><div style={{fontSize:'16px',fontWeight:800,color:'#EF4444'}}>{fmt(monthlyTotal)}</div></div><div style={{textAlign:'right'}}><div style={{fontSize:'9px',color:'#92710A'}}>ANNUAL COST</div><div style={{fontSize:'16px',fontWeight:800,color:'#EF4444'}}>{fmt(annualTotal)}</div></div></div>;})()}
+          {subs.slice().sort((a,b)=>{var fOrder={monthly:0,biannual:1,quarterly:2,annual:3};return(fOrder[a.frequency]||0)-(fOrder[b.frequency]||0);}).map(s=><div key={s.id} style={{padding:'8px',background:s.status==='active'?'#F3F4F6':'#FEF2F2',borderRadius:'6px',marginBottom:'3px',opacity:s.status==='active'?1:0.6}}>
+            <div style={{display:'flex',justifyContent:'space-between'}}><div><div style={{fontSize:'12px',fontWeight:700,color:s.status==='active'?'#B8860B':'#EF4444'}}>{s.name}</div><div style={{fontSize:'10px',color:'#9CA3AF'}}><span style={{padding:'1px 5px',borderRadius:'3px',background:'#E5E7EB',color:'#6B7280',fontSize:'9px',marginRight:'4px'}}>{s.category||'subscription'}</span>{s.frequency}{s.source?' via '+s.source:''}</div>{s.notes&&<div style={{fontSize:'9px',color:'#EF4444',marginTop:'2px'}}>{s.notes}</div>}</div><div style={{textAlign:'right'}}><div style={{fontSize:'14px',fontWeight:800,color:s.status==='active'?'#1F2937':'#EF4444'}}>{fmt(f(s.amount))}</div><div style={{fontSize:'9px',color:'#9CA3AF'}}>{s.frequency==='annual'?fmt(f(s.amount)/12)+'/mo':s.frequency==='biannual'?fmt(f(s.amount)/6)+'/mo':s.frequency==='quarterly'?fmt(f(s.amount)/3)+'/mo':'/mo'}</div></div></div>
+            <IA onEdit={()=>{setNewSub({name:s.name,amount:String(s.amount),frequency:s.frequency,source:s.source||'',notes:s.notes||'',status:s.status||'active',category:s.category||'subscription',_editId:s.id});setAddingSub(true);}} onRemove={()=>uSubs(subs.filter(x=>x.id!==s.id))}/>
+          </div>)}
+          {!addingSub?<button style={S.addBtn} onClick={()=>{setNewSub({name:'',amount:'',frequency:'monthly',source:'',notes:'',status:'active',category:'subscription'});setAddingSub(true);}}>+ Add Subscription</button>
+          :<div style={{padding:'8px',background:'#FFFBEB',borderRadius:'8px',marginTop:'4px',border:'1px solid #D4A01733'}}>
+            <Inp label="Item" value={newSub.name} onChange={e=>setNewSub(p=>({...p,name:e.target.value}))} type="text" placeholder="Netflix, Gym, Insurance"/>
+            <div style={{display:'flex',gap:'4px',marginBottom:'8px',flexWrap:'wrap'}}>{[['subscription','Subscription'],['membership','Membership'],['upskill','Upskill'],['insurance','Insurance'],['utility','Utility'],['domain','Domain/Hosting'],['pet','Pet'],['other','Other']].map(([v,l])=><button key={v} style={S.chip(newSub.category===v)} onClick={()=>setNewSub(p=>({...p,category:v}))}>{l}</button>)}</div>
+            <div style={{display:'flex',gap:'4px',marginBottom:'8px',flexWrap:'wrap'}}>{[['monthly','Monthly'],['quarterly','Quarterly'],['biannual','Bi-Annual'],['annual','Annual']].map(([v,l])=><button key={v} style={S.chip(newSub.frequency===v)} onClick={()=>setNewSub(p=>({...p,frequency:v}))}>{l}</button>)}</div>
+            <div style={S.row2}><div style={{flex:1}}><Inp label="Amount" value={newSub.amount} onChange={e=>setNewSub(p=>({...p,amount:e.target.value}))}/></div><div style={{flex:1}}><Inp label="Source" value={newSub.source} onChange={e=>setNewSub(p=>({...p,source:e.target.value}))} type="text" placeholder="Provider"/></div></div>
+            <div style={{display:'flex',gap:'4px',marginBottom:'8px'}}>{[['active','Active'],['cancel','To Cancel'],['closed','Closed']].map(([v,l])=><button key={v} style={S.chip(newSub.status===v)} onClick={()=>setNewSub(p=>({...p,status:v}))}>{l}</button>)}</div>
+            <Inp label="Notes (optional)" value={newSub.notes} onChange={e=>setNewSub(p=>({...p,notes:e.target.value}))} type="text" placeholder="Cancel date, reminders"/>
+            <div style={S.row2}><button style={{...S.addBtn,flex:1,marginTop:0}} onClick={()=>{if(!newSub.name||!newSub.amount)return;if(newSub._editId){uSubs(subs.map(s=>s.id===newSub._editId?{...s,name:newSub.name,amount:f(newSub.amount),frequency:newSub.frequency,source:newSub.source,notes:newSub.notes,status:newSub.status,category:newSub.category||'subscription'}:s));}else{uSubs([...subs,{id:Date.now()+Math.random(),name:newSub.name,amount:f(newSub.amount),frequency:newSub.frequency,source:newSub.source,notes:newSub.notes,status:newSub.status,category:newSub.category||'subscription'}]);}setAddingSub(false);}}>{newSub._editId?'Update':'Add'}</button><button style={{...S.addBtn,flex:1,marginTop:0,background:'#E5E7EB',color:'#6B7280'}} onClick={()=>setAddingSub(false)}>Cancel</button></div>
+          </div>}
+        </div>
  
         {/* Debt */}
         <div style={S.card}><div style={S.ct}>Liabilities ({debts.length})</div>
@@ -837,4 +859,3 @@ ReactDOM.createRoot(document.getElementById('root')).render(<WealthApp/>);
 </script>
 </body>
 </html>
- 
